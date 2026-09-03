@@ -1,7 +1,7 @@
 # PulseBreath Wear project plan
 
 Status date: 2026-09-03  
-Current milestone: 1 - implemented and verified; awaiting user review and acceptance
+Current milestone: 2 - implemented and verified; awaiting user review and acceptance
 
 ## Objective
 
@@ -104,6 +104,8 @@ Implementation status (2026-09-03): complete on `feature/milestone-1-basic-wear-
 
 Acceptance: a complete two-minute session works without sensors, including pause, resume, and cancel.
 
+Implementation status (2026-09-03): complete on `feature/milestone-2-breathing-trainer`; automated and visual verification passed. See `docs/milestone-2.md`.
+
 ### Milestone 3 - Simulated BPM and IBI
 
 - Define timestamped BPM/IBI/quality models and a sensor-source interface.
@@ -182,10 +184,10 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 
 ## Immediate next actions
 
-1. Let the user inspect the running Etap 1 screen and `docs/milestone-1.md`.
-2. Give the user a small Compose exercise.
-3. Recheck disk C before Milestone 2; do not delete or move unrelated user data without explicit approval.
-4. Wait for explicit approval before committing Milestone 1 or starting Milestone 2.
+1. Let the user inspect the Milestone 2 screens and `docs/milestone-2.md`.
+2. Give the user a small session-state exercise.
+3. Verify transition haptics manually on the physical watch when convenient.
+4. Wait for explicit approval before committing Milestone 2 or starting Milestone 3.
 
 ## Official references
 

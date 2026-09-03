@@ -1,29 +1,34 @@
 package com.example.pulsebreathwear.presentation
 
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.wear.compose.material3.AppScaffold
-import androidx.wear.compose.material3.Button
-import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.Text
 import androidx.wear.compose.ui.tooling.preview.WearPreviewDevices
-import com.example.pulsebreathwear.R
 import com.example.pulsebreathwear.presentation.theme.PulseBreathWearTheme
+import com.example.pulsebreathwear.session.BreathingPhase
+import com.example.pulsebreathwear.session.BreathingSessionConfig
+import com.example.pulsebreathwear.session.BreathingSessionState
+import com.example.pulsebreathwear.session.BreathingSessionStatus
+import kotlinx.coroutines.delay
+
+private const val COMPLETION_SCREEN_GRACE_MILLIS = 5_000L
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,13 +39,94 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+internal fun interface MonotonicTimeSource {
+    fun nowMillis(): Long
+}
+
+private object SystemMonotonicTimeSource : MonotonicTimeSource {
+    override fun nowMillis(): Long = SystemClock.elapsedRealtime()
+}
+
 @Composable
-fun PulseBreathApp(onStart: () -> Unit = {}) {
+internal fun PulseBreathApp(
+    config: BreathingSessionConfig = BreathingSessionConfig(),
+    timeSource: MonotonicTimeSource = SystemMonotonicTimeSource,
+) {
+    var sessionState by remember(config) { mutableStateOf(BreathingSessionState()) }
+    var nowMillis by remember(config) { mutableLongStateOf(timeSource.nowMillis()) }
+
+    LaunchedEffect(sessionState.status, config, timeSource) {
+        while (sessionState.status == BreathingSessionStatus.RUNNING) {
+            withFrameNanos { }
+            val tickMillis = timeSource.nowMillis()
+            nowMillis = tickMillis
+            sessionState = sessionState.advance(tickMillis, config)
+        }
+    }
+
+    val snapshot = sessionState.snapshot(nowMillis, config)
+    val rootView = LocalView.current
+    val shouldKeepScreenOn =
+        sessionState.status == BreathingSessionStatus.RUNNING ||
+            sessionState.status == BreathingSessionStatus.COMPLETED
+
+    DisposableEffect(rootView, shouldKeepScreenOn) {
+        rootView.keepScreenOn = shouldKeepScreenOn
+        onDispose {
+            rootView.keepScreenOn = false
+        }
+    }
+
+    LaunchedEffect(rootView, sessionState.status) {
+        if (sessionState.status == BreathingSessionStatus.COMPLETED) {
+            delay(COMPLETION_SCREEN_GRACE_MILLIS)
+            rootView.keepScreenOn = false
+        }
+    }
+
+    val hapticFeedback = LocalHapticFeedback.current
+    var lastHapticPhase by remember { mutableStateOf<BreathingPhase?>(null) }
+
+    LaunchedEffect(sessionState.status, snapshot.phase) {
+        if (sessionState.status == BreathingSessionStatus.RUNNING) {
+            if (snapshot.phase != lastHapticPhase) {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
+                lastHapticPhase = snapshot.phase
+            }
+        } else if (sessionState.status != BreathingSessionStatus.PAUSED) {
+            lastHapticPhase = null
+        }
+    }
+
     PulseBreathWearTheme {
         AppScaffold {
             ScreenScaffold { contentPadding ->
-                PulseBreathHomeScreen(
-                    onStart = onStart,
+                BreathingSessionScreen(
+                    snapshot = snapshot,
+                    onStart = {
+                        val timestamp = timeSource.nowMillis()
+                        nowMillis = timestamp
+                        sessionState = sessionState.start(timestamp)
+                    },
+                    onPause = {
+                        val timestamp = timeSource.nowMillis()
+                        nowMillis = timestamp
+                        sessionState = sessionState.pause(timestamp, config)
+                    },
+                    onResume = {
+                        val timestamp = timeSource.nowMillis()
+                        nowMillis = timestamp
+                        sessionState = sessionState.resume(timestamp)
+                    },
+                    onCancel = {
+                        val timestamp = timeSource.nowMillis()
+                        nowMillis = timestamp
+                        sessionState = sessionState.cancel(timestamp, config)
+                    },
+                    onReset = {
+                        nowMillis = timeSource.nowMillis()
+                        sessionState = sessionState.reset()
+                    },
                     modifier = Modifier.padding(contentPadding),
                 )
             }
@@ -48,41 +134,8 @@ fun PulseBreathApp(onStart: () -> Unit = {}) {
     }
 }
 
-@Composable
-internal fun PulseBreathHomeScreen(
-    onStart: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = stringResource(R.string.home_title),
-            maxLines = 2,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.titleSmall,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onStart,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = stringResource(R.string.start),
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
 @WearPreviewDevices
 @Composable
-fun DefaultPreview() {
+private fun DefaultPreview() {
     PulseBreathApp()
 }
