@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,7 +31,11 @@ import pl.pulsebreath.wear.sensor.FakeSensorDataSource
 import pl.pulsebreath.wear.sensor.FakeSensorFrame
 import pl.pulsebreath.wear.sensor.FakeSensorScenario
 import pl.pulsebreath.wear.sensor.SensorSampleRequest
+import pl.pulsebreath.wear.sensor.SensorSample
 import pl.pulsebreath.wear.sensor.SensorSignalQuality
+import pl.pulsebreath.wear.signal.HrvAnalyzer
+import pl.pulsebreath.wear.signal.HrvMetrics
+import pl.pulsebreath.wear.signal.HrvWindowQuality
 import pl.pulsebreath.wear.session.BreathingPhase
 import pl.pulsebreath.wear.session.BreathingSessionConfig
 import pl.pulsebreath.wear.session.BreathingSessionState
@@ -56,13 +61,14 @@ class DebugDiagnosticsActivity : ComponentActivity() {
 @Composable
 internal fun LiveFakeSensorDiagnostics(modifier: Modifier = Modifier) {
     val dataSource = remember { FakeSensorDataSource() }
+    val sampleHistory = remember { mutableStateListOf<SensorSample>() }
     val startedAtMillis = remember { SystemClock.elapsedRealtime() }
     var nowMillis by remember { mutableLongStateOf(startedAtMillis) }
 
     LaunchedEffect(Unit) {
         while (true) {
             nowMillis = SystemClock.elapsedRealtime()
-            delay(500L)
+            delay(1_000L)
         }
     }
 
@@ -80,10 +86,19 @@ internal fun LiveFakeSensorDiagnostics(modifier: Modifier = Modifier) {
                 phaseProgress = breathingSnapshot.phaseProgress,
             ),
         )
+    LaunchedEffect(frame.sample.monotonicTimestampMillis) {
+        sampleHistory.add(frame.sample)
+        val oldestAllowedMillis = frame.sample.monotonicTimestampMillis - 60_000L
+        sampleHistory.removeAll { sample ->
+            sample.monotonicTimestampMillis < oldestAllowedMillis
+        }
+    }
+    val metrics = HrvAnalyzer.analyze(sampleHistory)
 
     FakeSensorDiagnosticsScreen(
         frame = frame,
         breathingPhase = breathingSnapshot.phase,
+        metrics = metrics,
         modifier = modifier,
     )
 }
@@ -92,6 +107,7 @@ internal fun LiveFakeSensorDiagnostics(modifier: Modifier = Modifier) {
 internal fun FakeSensorDiagnosticsScreen(
     frame: FakeSensorFrame,
     breathingPhase: BreathingPhase,
+    metrics: HrvMetrics? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -134,6 +150,29 @@ internal fun FakeSensorDiagnosticsScreen(
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.labelMedium,
         )
+        metrics?.let { currentMetrics ->
+            Text(
+                text = windowQualityLabel(currentMetrics.quality),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                text = stringResource(
+                    R.string.ibi_event_coverage,
+                    currentMetrics.ibiEventCoveragePercent,
+                ),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                text =
+                    currentMetrics.rmssdMillis?.let {
+                        stringResource(R.string.rmssd_value, it)
+                    } ?: stringResource(R.string.rmssd_unavailable),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
         Text(
             text =
                 when (breathingPhase) {
@@ -163,4 +202,11 @@ private fun qualityLabel(quality: SensorSignalQuality): String =
         SensorSignalQuality.MOTION_ARTIFACT -> stringResource(R.string.quality_motion)
         SensorSignalQuality.SIGNAL_LOST -> stringResource(R.string.quality_lost)
         SensorSignalQuality.RECOVERING -> stringResource(R.string.quality_recovering)
+    }
+
+@Composable
+private fun windowQualityLabel(quality: HrvWindowQuality): String =
+    when (quality) {
+        HrvWindowQuality.ADEQUATE -> stringResource(R.string.window_quality_adequate)
+        HrvWindowQuality.INSUFFICIENT -> stringResource(R.string.window_quality_insufficient)
     }

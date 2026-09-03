@@ -1,7 +1,7 @@
 # PulseBreath Wear project plan
 
 Status date: 2026-09-03  
-Current milestone: 4 - implemented and verified; awaiting user review and acceptance
+Current milestone: 5 - implemented and verified; awaiting user review and acceptance
 
 ## Objective
 
@@ -135,6 +135,8 @@ Implementation status (2026-09-03): complete on `feature/milestone-4-samsung-sen
 
 Acceptance: results match documented test vectors and artifact handling is explicit.
 
+Implementation status (2026-09-04): complete on `feature/milestone-5-signal-quality-hrv`; documented fixtures, automated calculations, lint, and emulator UI regression tests passed. See `docs/metrics.md` and `docs/milestone-5.md`.
+
 ### Milestone 6 - Biofeedback and resonance calibration
 
 - Define and version `alignment_v1` for fixed-rate breathing.
@@ -188,9 +190,9 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 
 ## Immediate next actions
 
-1. Let the user review the real-sensor screen and `docs/milestone-4.md`.
-2. Give the user a small lifecycle and IBI-presentation exercise.
-3. Wait for explicit approval before committing Milestone 4 or starting Milestone 5.
+1. Let the user review `docs/metrics.md` and the debug-only HRV diagnostics.
+2. Give the user a small quality-window and artifact-break exercise.
+3. Wait for explicit approval before committing Milestone 5 or starting Milestone 6.
 
 ## Official references
 

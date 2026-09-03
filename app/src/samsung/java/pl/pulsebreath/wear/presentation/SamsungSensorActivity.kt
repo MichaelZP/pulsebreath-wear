@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -33,6 +34,9 @@ import pl.pulsebreath.wear.sensor.SamsungSensorDataSource
 import pl.pulsebreath.wear.sensor.SensorSample
 import pl.pulsebreath.wear.sensor.SensorStreamState
 import pl.pulsebreath.wear.sensor.SensorStreamStatus
+import pl.pulsebreath.wear.signal.HrvAnalyzer
+import pl.pulsebreath.wear.signal.HrvMetrics
+import java.util.Locale
 
 internal fun requiredHeartRatePermission(): String =
     if (Build.VERSION.SDK_INT >= 36) {
@@ -50,6 +54,7 @@ class SamsungSensorActivity : ComponentActivity() {
     )
     private var latestSample by mutableStateOf<SensorSample?>(null)
     private var latestValidIbiMillis by mutableStateOf<List<Long>>(emptyList())
+    private val sessionSamples = mutableStateListOf<SensorSample>()
 
     private val permissionRequest =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -74,6 +79,7 @@ class SamsungSensorActivity : ComponentActivity() {
                 status = streamStatus,
                 latestSample = latestSample,
                 latestValidIbiMillis = latestValidIbiMillis,
+                metrics = HrvAnalyzer.analyze(sessionSamples),
                 onRequestPermission = {
                     permissionRequest.launch(requiredHeartRatePermission())
                 },
@@ -100,12 +106,18 @@ class SamsungSensorActivity : ComponentActivity() {
         }
         latestSample = null
         latestValidIbiMillis = emptyList()
+        sessionSamples.clear()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         sensorDataSource.start(
             onStatus = { status -> runOnUiThread { streamStatus = status } },
             onSample = { sample ->
                 runOnUiThread {
                     latestSample = sample
+                    sessionSamples.add(sample)
+                    val oldestAllowedMillis = sample.monotonicTimestampMillis - 60_000L
+                    sessionSamples.removeAll { observedSample ->
+                        observedSample.monotonicTimestampMillis < oldestAllowedMillis
+                    }
                     if (sample.ibiMillis.isNotEmpty()) {
                         latestValidIbiMillis = sample.ibiMillis
                     }
@@ -130,6 +142,7 @@ private fun SamsungSensorApp(
     status: SensorStreamStatus,
     latestSample: SensorSample?,
     latestValidIbiMillis: List<Long>,
+    metrics: HrvMetrics,
     onRequestPermission: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -180,6 +193,25 @@ private fun SamsungSensorApp(
                         )
                         Text("Signal: ${sample.quality.name}")
                     }
+                    Text(
+                        text = "HRV window: ${metrics.quality.name}",
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = "IBI coverage: ${metrics.ibiEventCoveragePercent.toInt()}%",
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = "Valid IBI: ${metrics.validIbiCount}",
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = metrics.rmssdMillis?.let {
+                            String.format(Locale.US, "RMSSD: %.1f ms", it)
+                        }
+                            ?: "RMSSD: waiting",
+                        textAlign = TextAlign.Center,
+                    )
                     if (status.state == SensorStreamState.CONNECTING ||
                         status.state == SensorStreamState.TRACKING
                     ) {

@@ -14,6 +14,11 @@
     <string name="quality_motion">Jakość: ruch</string>
     <string name="quality_lost">Jakość: brak</string>
     <string name="quality_recovering">Jakość: powrót</string>
+    <string name="window_quality_adequate">Okno HRV: wystarczające</string>
+    <string name="window_quality_insufficient">Okno HRV: za mało danych</string>
+    <string name="ibi_event_coverage">Pokrycie IBI: %1$.0f%%</string>
+    <string name="rmssd_value">RMSSD %1$.1f ms</string>
+    <string name="rmssd_unavailable">RMSSD —</string>
     <string name="phase_inhale">Wdech</string>
     <string name="phase_exhale">Wydech</string>
 </resources>

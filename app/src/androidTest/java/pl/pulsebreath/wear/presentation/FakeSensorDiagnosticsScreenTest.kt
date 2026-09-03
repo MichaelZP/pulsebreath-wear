@@ -10,6 +10,8 @@ import pl.pulsebreath.wear.sensor.FakeSensorScenario
 import pl.pulsebreath.wear.sensor.SensorSample
 import pl.pulsebreath.wear.sensor.SensorSignalQuality
 import pl.pulsebreath.wear.sensor.SensorSourceType
+import pl.pulsebreath.wear.signal.HrvMetrics
+import pl.pulsebreath.wear.signal.HrvWindowQuality
 import pl.pulsebreath.wear.session.BreathingPhase
 import org.junit.Rule
 import org.junit.Test
@@ -68,6 +70,47 @@ class FakeSensorDiagnosticsScreenTest {
         composeRule.onNodeWithText("IBI —").assertIsDisplayed()
         composeRule.onNodeWithText("Jakość: brak").assertIsDisplayed()
         composeRule.onNodeWithText("Wydech").assertIsDisplayed()
+    }
+
+    @Test
+    fun hrvWindowQualityIsDisplayedSeparatelyFromSourceQuality() {
+        composeRule.setContent {
+            PulseBreathWearTheme {
+                FakeSensorDiagnosticsScreen(
+                    frame =
+                        FakeSensorFrame(
+                            scenario = FakeSensorScenario.CALM,
+                            sample =
+                                SensorSample(
+                                    monotonicTimestampMillis = 1_000L,
+                                    beatsPerMinute = 60.0,
+                                    ibiMillis = listOf(1_000L),
+                                    quality = SensorSignalQuality.GOOD,
+                                    sourceType = SensorSourceType.SIMULATED,
+                                ),
+                        ),
+                    breathingPhase = BreathingPhase.INHALE,
+                    metrics =
+                        HrvMetrics(
+                            analysisEndMillis = 1_000L,
+                            sampleEventCount = 10,
+                            goodSampleEventCount = 10,
+                            validIbiEventCount = 10,
+                            validIbiCount = 10,
+                            invalidIbiCount = 0,
+                            ibiEventCoveragePercent = 100.0,
+                            meanBpm = 60.0,
+                            rmssdMillis = 12.5,
+                            quality = HrvWindowQuality.ADEQUATE,
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Jakość: dobra").assertIsDisplayed()
+        composeRule.onNodeWithText("Okno HRV: wystarczające").assertIsDisplayed()
+        composeRule.onNodeWithText("Pokrycie IBI: 100%").assertIsDisplayed()
+        composeRule.onNodeWithText("RMSSD 12.5 ms").assertIsDisplayed()
     }
 
     private fun setDiagnosticsContent(
