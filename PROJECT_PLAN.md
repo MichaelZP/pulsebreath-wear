@@ -1,7 +1,7 @@
 # PulseBreath Wear project plan
 
 Status date: 2026-09-03  
-Current milestone: 0 - completed; awaiting explicit approval to start Milestone 1
+Current milestone: 1 - implemented and verified; awaiting user review and acceptance
 
 ## Objective
 
@@ -41,7 +41,7 @@ The supplied screenshots came from the Galaxy Wearable phone app, so they did no
 | CPU | Intel Core i7-4720HQ, 8 logical processors | Older than current emulator guidance; verify performance |
 | RAM | 15.9 GB | Meets the current minimum for Studio plus one emulator, with little margin |
 | Virtualization | WHPX 10.0.26100 detected and operational | Verified by a complete Wear OS AVD boot |
-| Disk C | 7.6 GB free after IDE installation | Keep SDK, AVD images, and build caches off C where practical |
+| Disk C | 14.5 GB free at the final Milestone 1 audit; a transient 2.3 GB low was observed during tool activity | Monitor free space while keeping SDK, AVD, and Gradle cache on D |
 | Disk D | 51.6 GB free after SDK and AVD installation | SDK and AVD data installed here |
 | Git | 2.55.0.windows.4 | Available |
 | Java | System Java 8 remains unchanged; Android Studio bundles OpenJDK 25.0.3 | Use the bundled JDK for Android/Gradle |
@@ -93,6 +93,8 @@ Acceptance:
 - Explain Gradle structure, manifest, activity, and composables.
 
 Acceptance: the smallest app builds and is manually visible on an emulator or explicitly accepted physical-device fallback.
+
+Implementation status (2026-09-03): complete on `feature/milestone-1-basic-wear-app`; automated and visual verification passed. See `docs/milestone-1.md`.
 
 ### Milestone 2 - Sensor-free breathing trainer
 
@@ -165,7 +167,7 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 | Background execution or haptics drains battery | Use monotonic timing, lifecycle-aware cleanup, short sessions, and milestone-specific battery review |
 | Samsung policy or service-version incompatibility | Perform runtime capability checks and record the installed Health Sensor Service version before integration |
 
-## Immediate next actions
+## Completed setup actions
 
 1. Completed: initialize the local Git repository on `main` without committing or configuring a remote.
 2. Completed: install the latest stable Android Studio and the required Android SDK components.
@@ -176,7 +178,14 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 7. Verified by the user: `adb version` reports Platform-Tools 37.0.1 and `emulator -list-avds` reports `PulseBreath_WearOS_7_API_37`.
 8. Completed: confirm Health Sensor Service 1.8.00.07 and enable its developer mode on the physical Galaxy Watch9. The exact Wear OS version can be recorded before Samsung SDK integration.
 9. Completed: document the device-specific ADB route and observed wireless-debugging failures without storing the watch address, transient ports, pairing code, or persistent identifiers.
-10. Milestone 0 is complete. Wait for explicit user approval before creating the Milestone 1 application.
+10. Milestone 0 was accepted and committed locally as `7d597db`.
+
+## Immediate next actions
+
+1. Let the user inspect the running Etap 1 screen and `docs/milestone-1.md`.
+2. Give the user a small Compose exercise.
+3. Recheck disk C before Milestone 2; do not delete or move unrelated user data without explicit approval.
+4. Wait for explicit approval before committing Milestone 1 or starting Milestone 2.
 
 ## Official references
 
