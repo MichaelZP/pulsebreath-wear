@@ -106,3 +106,101 @@ For events `GOOD([1000, 900])`, `MOTION_ARTIFACT([])`, `GOOD([1100])`, no RMSSD 
 - The 60-second window, 10-IBI minimum, and 80% threshold are product decisions for `quality_v1`, not normative values.
 - No frequency-domain metric, clinical baseline, medical alert, or biofeedback score is calculated in this milestone.
 - Polar H10 comparison is deferred to the validation milestone and requires a written protocol before collecting any data.
+
+---
+
+# PulseBreath breathing-alignment specification
+
+Algorithm version: `alignment_v1`
+Status: implemented for deterministic simulated data only; not clinically validated
+
+## Scope and safety
+
+`alignment_v1` is a short-window signal-consistency indicator. It compares the
+observed IBI pattern with the phase and progress of the app's *fixed-rate guided
+breathing cue*. It is not a diagnostic, a measure of autonomic health, a
+measurement of baroreflex sensitivity, or a determination of an individual's
+resonance frequency.
+
+The score is deliberately unavailable instead of estimated when the IBI window
+does not satisfy `quality_v1`, contains an invalid IBI, or lacks variation. No
+IBI is interpolated, resampled, filtered, or replaced. The source and
+`quality_v1` result remain separate from the alignment result.
+
+## Input and fixed-rate template
+
+Each `AlignmentObservation` combines one timestamped `SensorSample` with the
+guided `BreathingPhase` and `phaseProgress` that were visible at that timestamp.
+Only positive IBI values from `GOOD` source events are paired with the template.
+The same closed 60-second interval used by `quality_v1` is applied.
+
+For each retained IBI, the dimensionless template value `x` is:
+
+```text
+x =  1 - 2 * phaseProgress    during INHALE
+x = -1 + 2 * phaseProgress    during EXHALE
+```
+
+Thus `x` describes the simulated IBI pattern used by this app: longer IBI near
+the beginning of inhalation and the end of exhalation, shorter IBI near the
+inhalation/exhalation transition. It is a software reference, not a claim about
+the timing of every person's physiology.
+
+## Formula and range
+
+Let `x_i` be the template value and `y_i` the matching positive IBI in
+milliseconds. `alignment_v1` is their Pearson correlation:
+
+```text
+alignment = sum((x_i - mean(x)) * (y_i - mean(y)))
+            / sqrt(sum((x_i - mean(x))^2) * sum((y_i - mean(y))^2))
+```
+
+Range: `[-1, 1]`.
+
+- `+1` means the retained IBI values have an exactly proportional pattern to
+  the fixed-rate template;
+- `0` means no linear relationship in the retained window;
+- `-1` means an exactly inverted pattern.
+
+The application does not convert this continuous value into a health category,
+achievement, recommendation, or target. A phase delay, sensor latency, posture,
+movement, cue-following error, and a short window can all change it.
+
+## Availability rules
+
+`alignment_v1` is `AVAILABLE` only when all of the following are true:
+
+1. `quality_v1` is `ADEQUATE` (at least 10 valid IBI values and at least 80%
+   IBI-event coverage);
+2. `quality_v1` counted no zero or negative IBI values in the window;
+3. the retained template and retained IBI values both have non-zero variation.
+
+Otherwise the result is absent with one of these explicit states:
+
+- `INSUFFICIENT_QUALITY`: the IBI window does not meet the first two rules;
+- `INSUFFICIENT_PHASE_VARIATION`: all retained template values are equal;
+- `NO_IBI_VARIATION`: all retained IBI values are equal.
+
+## Calibration boundary
+
+The fixed-rate score is a prerequisite for an experimental multi-rate protocol;
+it is not itself a calibration. No rate is selected, persisted, or presented as
+an individual's resonance frequency in this milestone. Any future calibration
+must compare predeclared equal-duration trials, report the raw score and data
+quality of every trial, allow cancellation, and be validated against a written
+protocol before it is used with real data.
+
+## Validation status and limits
+
+- Unit tests cover ideal, inverted (phase-shifted), noisy, missing-data, and
+  non-respiratory inputs.
+- The simulated input proves only arithmetic and state handling. It does not
+  validate the formula against a person, an ECG, or a chest-respiration signal.
+- The watch may batch IBI values and its timestamps may not identify the exact
+  beat phase; this version attaches an event's IBI values to the visible cue at
+  that event timestamp.
+- Evidence about slow paced breathing and HRV biofeedback is method-dependent;
+  individual resonance frequency cannot be inferred from this score alone.
+  See [HRVB methods review](https://pubmed.ncbi.nlm.nih.gov/36917418/) and
+  [resonance-frequency stability study](https://pubmed.ncbi.nlm.nih.gov/33863966/).

@@ -33,6 +33,10 @@ import pl.pulsebreath.wear.sensor.FakeSensorScenario
 import pl.pulsebreath.wear.sensor.SensorSampleRequest
 import pl.pulsebreath.wear.sensor.SensorSample
 import pl.pulsebreath.wear.sensor.SensorSignalQuality
+import pl.pulsebreath.wear.signal.AlignmentAvailability
+import pl.pulsebreath.wear.signal.AlignmentMetrics
+import pl.pulsebreath.wear.signal.AlignmentObservation
+import pl.pulsebreath.wear.signal.BreathingAlignmentAnalyzer
 import pl.pulsebreath.wear.signal.HrvAnalyzer
 import pl.pulsebreath.wear.signal.HrvMetrics
 import pl.pulsebreath.wear.signal.HrvWindowQuality
@@ -62,6 +66,7 @@ class DebugDiagnosticsActivity : ComponentActivity() {
 internal fun LiveFakeSensorDiagnostics(modifier: Modifier = Modifier) {
     val dataSource = remember { FakeSensorDataSource() }
     val sampleHistory = remember { mutableStateListOf<SensorSample>() }
+    val alignmentHistory = remember { mutableStateListOf<AlignmentObservation>() }
     val startedAtMillis = remember { SystemClock.elapsedRealtime() }
     var nowMillis by remember { mutableLongStateOf(startedAtMillis) }
 
@@ -88,17 +93,29 @@ internal fun LiveFakeSensorDiagnostics(modifier: Modifier = Modifier) {
         )
     LaunchedEffect(frame.sample.monotonicTimestampMillis) {
         sampleHistory.add(frame.sample)
+        alignmentHistory.add(
+            AlignmentObservation(
+                sample = frame.sample,
+                breathingPhase = breathingSnapshot.phase,
+                phaseProgress = breathingSnapshot.phaseProgress,
+            ),
+        )
         val oldestAllowedMillis = frame.sample.monotonicTimestampMillis - 60_000L
         sampleHistory.removeAll { sample ->
             sample.monotonicTimestampMillis < oldestAllowedMillis
         }
+        alignmentHistory.removeAll { observation ->
+            observation.sample.monotonicTimestampMillis < oldestAllowedMillis
+        }
     }
     val metrics = HrvAnalyzer.analyze(sampleHistory)
+    val alignmentMetrics = BreathingAlignmentAnalyzer.analyze(alignmentHistory)
 
     FakeSensorDiagnosticsScreen(
         frame = frame,
         breathingPhase = breathingSnapshot.phase,
         metrics = metrics,
+        alignmentMetrics = alignmentMetrics,
         modifier = modifier,
     )
 }
@@ -108,6 +125,7 @@ internal fun FakeSensorDiagnosticsScreen(
     frame: FakeSensorFrame,
     breathingPhase: BreathingPhase,
     metrics: HrvMetrics? = null,
+    alignmentMetrics: AlignmentMetrics? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -173,6 +191,13 @@ internal fun FakeSensorDiagnosticsScreen(
                 style = MaterialTheme.typography.labelSmall,
             )
         }
+        alignmentMetrics?.let { currentAlignmentMetrics ->
+            Text(
+                text = alignmentLabel(currentAlignmentMetrics),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
         Text(
             text =
                 when (breathingPhase) {
@@ -209,4 +234,20 @@ private fun windowQualityLabel(quality: HrvWindowQuality): String =
     when (quality) {
         HrvWindowQuality.ADEQUATE -> stringResource(R.string.window_quality_adequate)
         HrvWindowQuality.INSUFFICIENT -> stringResource(R.string.window_quality_insufficient)
+    }
+
+@Composable
+private fun alignmentLabel(metrics: AlignmentMetrics): String =
+    when (metrics.availability) {
+        AlignmentAvailability.AVAILABLE ->
+            stringResource(R.string.alignment_value, requireNotNull(metrics.score))
+
+        AlignmentAvailability.INSUFFICIENT_QUALITY ->
+            stringResource(R.string.alignment_insufficient_quality)
+
+        AlignmentAvailability.INSUFFICIENT_PHASE_VARIATION ->
+            stringResource(R.string.alignment_insufficient_phase_variation)
+
+        AlignmentAvailability.NO_IBI_VARIATION ->
+            stringResource(R.string.alignment_no_ibi_variation)
     }

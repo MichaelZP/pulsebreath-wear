@@ -145,6 +145,8 @@ Implementation status (2026-09-04): complete on `feature/milestone-5-signal-qual
 
 Acceptance: the metric has an explicit formula and range, repeatable tests, and clearly presented limitations.
 
+Implementation status (2026-09-04): `alignment_v1` is implemented and automatically verified for the fixed-rate simulated diagnostic stream. It is a guarded, non-clinical correlation score and deliberately does not run an automatic rate calibration. See `docs/metrics.md` and `docs/milestone-6.md`.
+
 ### Milestone 7 - Validation
 
 - Write `docs/validation_protocol.md` before collecting data.
@@ -190,9 +192,9 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 
 ## Immediate next actions
 
-1. Let the user review `docs/metrics.md` and the debug-only HRV diagnostics.
-2. Give the user a small quality-window and artifact-break exercise.
-3. Wait for explicit approval before committing Milestone 5 or starting Milestone 6.
+1. Run the complete unit, lint, build, and emulator checks for Milestone 6.
+2. Let the user review `alignment_v1` in the debug-only diagnostics and its explicit unavailable states.
+3. Wait for explicit approval before committing Milestone 6 or starting the validation milestone.
 
 ## Official references
 

@@ -12,6 +12,8 @@ import pl.pulsebreath.wear.sensor.SensorSignalQuality
 import pl.pulsebreath.wear.sensor.SensorSourceType
 import pl.pulsebreath.wear.signal.HrvMetrics
 import pl.pulsebreath.wear.signal.HrvWindowQuality
+import pl.pulsebreath.wear.signal.AlignmentAvailability
+import pl.pulsebreath.wear.signal.AlignmentMetrics
 import pl.pulsebreath.wear.session.BreathingPhase
 import org.junit.Rule
 import org.junit.Test
@@ -103,6 +105,13 @@ class FakeSensorDiagnosticsScreenTest {
                             rmssdMillis = 12.5,
                             quality = HrvWindowQuality.ADEQUATE,
                         ),
+                    alignmentMetrics =
+                        AlignmentMetrics(
+                            analysisEndMillis = 1_000L,
+                            validIbiCount = 10,
+                            availability = AlignmentAvailability.AVAILABLE,
+                            score = 0.75,
+                        ),
                 )
             }
         }
@@ -111,6 +120,7 @@ class FakeSensorDiagnosticsScreenTest {
         composeRule.onNodeWithText("Okno HRV: wystarczające").assertIsDisplayed()
         composeRule.onNodeWithText("Pokrycie IBI: 100%").assertIsDisplayed()
         composeRule.onNodeWithText("RMSSD 12.5 ms").assertIsDisplayed()
+        composeRule.onNodeWithText("Zgodność oddechu 0.75").assertIsDisplayed()
     }
 
     private fun setDiagnosticsContent(

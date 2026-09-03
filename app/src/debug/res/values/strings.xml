@@ -19,6 +19,10 @@
     <string name="ibi_event_coverage">Pokrycie IBI: %1$.0f%%</string>
     <string name="rmssd_value">RMSSD %1$.1f ms</string>
     <string name="rmssd_unavailable">RMSSD —</string>
+    <string name="alignment_value">Zgodność oddechu %1$.2f</string>
+    <string name="alignment_insufficient_quality">Zgodność oddechu: za mało danych</string>
+    <string name="alignment_insufficient_phase_variation">Zgodność oddechu: brak zmiany fazy</string>
+    <string name="alignment_no_ibi_variation">Zgodność oddechu: IBI bez zmienności</string>
     <string name="phase_inhale">Wdech</string>
     <string name="phase_exhale">Wydech</string>
 </resources>
