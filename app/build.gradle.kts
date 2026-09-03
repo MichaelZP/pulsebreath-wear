@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.pulsebreathwear"
+    namespace = "pl.pulsebreath.wear"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.pulsebreathwear"
+        applicationId = "pl.pulsebreath.wear"
         minSdk = 30
         targetSdk = 37
         versionCode = 1
@@ -23,6 +23,17 @@ android {
             optimization {
                 enable = false
             }
+        }
+    }
+    flavorDimensions += "sensorBackend"
+    productFlavors {
+        create("demo") {
+            dimension = "sensorBackend"
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+        }
+        create("samsung") {
+            dimension = "sensorBackend"
         }
     }
     compileOptions {
@@ -54,4 +65,8 @@ dependencies {
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.test.manifest)
     debugImplementation(libs.ui.tooling)
+    add(
+        "samsungImplementation",
+        files("libs/samsung-health-sensor-api-1.4.1.aar"),
+    )
 }

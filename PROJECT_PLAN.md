@@ -1,7 +1,7 @@
 # PulseBreath Wear project plan
 
 Status date: 2026-09-03  
-Current milestone: 3 - implemented and verified; awaiting user review and acceptance
+Current milestone: 4 - implemented and verified; awaiting user review and acceptance
 
 ## Objective
 
@@ -14,7 +14,7 @@ Develop a standalone Wear OS breathing trainer for Samsung Galaxy Watch in small
 | Project directory | `C:\Users\user\Documents\Codex\pulsebreath-wear` | Confirmed |
 | App name | `PulseBreath Wear` | Working name |
 | Repository name | `pulsebreath-wear` | Working name; no remote repository authorized |
-| Application ID | `com.example.pulsebreathwear` | Provisional; replace with a durable ID before Samsung integration, signing, or distribution |
+| Application ID | `pl.pulsebreath.wear` | Confirmed before Samsung integration |
 | Source-code license | Apache-2.0 | Confirmed; add the license file in the appropriate repository milestone |
 | GitHub visibility | Private proposed | Not yet authorized; no GitHub operation may be performed |
 | Product category | Wellness/research | Confirmed; not diagnostic or medical software |
@@ -125,6 +125,8 @@ Implementation status (2026-09-03): complete on `feature/milestone-3-simulated-b
 
 Acceptance: real BPM and IBI are demonstrated on the physical watch in developer mode; emulator claims are prohibited.
 
+Implementation status (2026-09-03): complete on `feature/milestone-4-samsung-sensor`; automated checks, emulator regression tests, and physical Galaxy Watch BPM/IBI plus stop-lifecycle verification passed. See `docs/milestone-4.md`.
+
 ### Milestone 5 - Signal quality and basic HRV
 
 - Specify formulas, units, examples, thresholds, window lengths, and validation status in `docs/metrics.md` before implementation.
@@ -186,10 +188,9 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 
 ## Immediate next actions
 
-1. Let the user inspect the debug-only simulated BPM/IBI diagnostics and `docs/milestone-3.md`.
-2. Give the user a small fake-source and quality-state exercise.
-3. Keep the provisional application ID unchanged until the explicit pre-Samsung decision.
-4. Wait for explicit approval before committing Milestone 3 or starting Milestone 4.
+1. Let the user review the real-sensor screen and `docs/milestone-4.md`.
+2. Give the user a small lifecycle and IBI-presentation exercise.
+3. Wait for explicit approval before committing Milestone 4 or starting Milestone 5.
 
 ## Official references
 
