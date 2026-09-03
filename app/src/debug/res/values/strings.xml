@@ -1,0 +1,19 @@
+<resources>
+    <string name="diagnostics_app_name">PulseBreath Diagnostics</string>
+    <string name="simulated_data">DANE SYMULOWANE</string>
+    <string name="scenario_calm">Spokojny rytm</string>
+    <string name="scenario_rsa">RSA oddechowa</string>
+    <string name="scenario_motion">Artefakt ruchowy</string>
+    <string name="scenario_loss">Brak sygnału</string>
+    <string name="scenario_recovery">Powrót sygnału</string>
+    <string name="bpm_value">%1$.1f BPM</string>
+    <string name="bpm_unavailable">— BPM</string>
+    <string name="ibi_value">IBI %1$d ms</string>
+    <string name="ibi_unavailable">IBI —</string>
+    <string name="quality_good">Jakość: dobra</string>
+    <string name="quality_motion">Jakość: ruch</string>
+    <string name="quality_lost">Jakość: brak</string>
+    <string name="quality_recovering">Jakość: powrót</string>
+    <string name="phase_inhale">Wdech</string>
+    <string name="phase_exhale">Wydech</string>
+</resources>

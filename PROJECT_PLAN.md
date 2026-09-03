@@ -1,7 +1,7 @@
 # PulseBreath Wear project plan
 
 Status date: 2026-09-03  
-Current milestone: 2 - implemented and verified; awaiting user review and acceptance
+Current milestone: 3 - implemented and verified; awaiting user review and acceptance
 
 ## Objective
 
@@ -114,6 +114,8 @@ Implementation status (2026-09-03): complete on `feature/milestone-2-breathing-t
 
 Acceptance: sensor-independent algorithms run repeatably on the development computer and emulator.
 
+Implementation status (2026-09-03): complete on `feature/milestone-3-simulated-bpm-ibi`; automated and visual verification passed. See `docs/milestone-3.md`.
+
 ### Milestone 4 - Samsung Health Sensor SDK
 
 - Select a final application ID before integration.
@@ -184,10 +186,10 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 
 ## Immediate next actions
 
-1. Let the user inspect the Milestone 2 screens and `docs/milestone-2.md`.
-2. Give the user a small session-state exercise.
-3. Verify transition haptics manually on the physical watch when convenient.
-4. Wait for explicit approval before committing Milestone 2 or starting Milestone 3.
+1. Let the user inspect the debug-only simulated BPM/IBI diagnostics and `docs/milestone-3.md`.
+2. Give the user a small fake-source and quality-state exercise.
+3. Keep the provisional application ID unchanged until the explicit pre-Samsung decision.
+4. Wait for explicit approval before committing Milestone 3 or starting Milestone 4.
 
 ## Official references
 
