@@ -5,6 +5,11 @@ import android.content.pm.PackageManager
 import android.health.connect.HealthPermissions
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.delay
+import pl.pulsebreath.wear.sensor.TimingDiagnostics
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -55,6 +60,8 @@ class SamsungSensorActivity : ComponentActivity() {
     private var latestSample by mutableStateOf<SensorSample?>(null)
     private var latestValidIbiMillis by mutableStateOf<List<Long>>(emptyList())
     private val sessionSamples = mutableStateListOf<SensorSample>()
+    private var timingDiagnostics by mutableStateOf(TimingDiagnostics())
+    private var sessionGeneration = 0L
 
     private val permissionRequest =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -80,6 +87,7 @@ class SamsungSensorActivity : ComponentActivity() {
                 latestSample = latestSample,
                 latestValidIbiMillis = latestValidIbiMillis,
                 metrics = HrvAnalyzer.analyze(sessionSamples),
+                timingDiagnostics = timingDiagnostics,
                 onRequestPermission = {
                     permissionRequest.launch(requiredHeartRatePermission())
                 },
@@ -107,11 +115,17 @@ class SamsungSensorActivity : ComponentActivity() {
         latestSample = null
         latestValidIbiMillis = emptyList()
         sessionSamples.clear()
+        timingDiagnostics = TimingDiagnostics()
+        val generation = ++sessionGeneration
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         sensorDataSource.start(
-            onStatus = { status -> runOnUiThread { streamStatus = status } },
+            onStatus = { status -> runOnUiThread {
+                if (generation == sessionGeneration) streamStatus = status
+            } },
             onSample = { sample ->
                 runOnUiThread {
+                    if (generation != sessionGeneration) return@runOnUiThread
+                    timingDiagnostics = timingDiagnostics.add(sample)
                     latestSample = sample
                     sessionSamples.add(sample)
                     val oldestAllowedMillis = sample.monotonicTimestampMillis - 60_000L
@@ -127,6 +141,7 @@ class SamsungSensorActivity : ComponentActivity() {
     }
 
     private fun stopSensor() {
+        sessionGeneration++
         if (::sensorDataSource.isInitialized) {
             sensorDataSource.stop()
         }
@@ -143,6 +158,7 @@ private fun SamsungSensorApp(
     latestSample: SensorSample?,
     latestValidIbiMillis: List<Long>,
     metrics: HrvMetrics,
+    timingDiagnostics: TimingDiagnostics,
     onRequestPermission: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -224,8 +240,34 @@ private fun SamsungSensorApp(
                             Text("Start sensor")
                         }
                     }
+                    TimingDiagnosticsPanel(timingDiagnostics, status.state)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun TimingDiagnosticsPanel(summary: TimingDiagnostics, state: SensorStreamState) {
+    var now by remember { mutableStateOf(SystemClock.elapsedRealtime()) }
+    val running = state == SensorStreamState.TRACKING || state == SensorStreamState.CONNECTING
+    LaunchedEffect(running, summary) {
+        now = SystemClock.elapsedRealtime()
+        while (running) {
+            delay(1_000)
+            now = SystemClock.elapsedRealtime()
+        }
+    }
+    Text("Timing diagnostics — session only", textAlign = TextAlign.Center)
+    Text("Adaptation disabled: beat timing unverified", textAlign = TextAlign.Center)
+    Text("Points / groups: ${summary.points} / ${summary.callbackGroups}")
+    Text("Multi-point groups: ${summary.multiPointGroups}; max: ${summary.maxBatchSize}", textAlign = TextAlign.Center)
+    Text("Empty companions: ${summary.emptyCompanions}")
+    Text("Missing metadata: ${summary.missingMetadata}")
+    Text("Ordering flags: ${summary.orderingErrors}")
+    Text("SDK delta: ${summary.minSdkDelta ?: "—"}..${summary.maxSdkDelta ?: "—"} ms", textAlign = TextAlign.Center)
+    Text("Receipt delta: ${summary.minReceiptDelta ?: "—"}..${summary.maxReceiptDelta ?: "—"} ms", textAlign = TextAlign.Center)
+    Text(if (running) "Receipt age: ${summary.receiptAge(now) ?: "—"} ms" else "Stopped — retained summary")
+    Text("Last timing block: ${summary.lastReason ?: "no data"}", textAlign = TextAlign.Center)
+    Text("Delta is not latency. No export or storage.", textAlign = TextAlign.Center)
 }
