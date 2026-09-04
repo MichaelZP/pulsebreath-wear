@@ -1,5 +1,8 @@
 # Security and privacy
 
+See [draft privacy information](PRIVACY.md) for data flow, in-memory retention and
+unresolved release requirements. Stopping a sensor does not erase its displayed results.
+
 This unreleased prototype has no production support commitment.
 Provider and maintainer: **Michał Przybylski**.
 For an initial, non-sensitive contact, use the maintainer-supplied

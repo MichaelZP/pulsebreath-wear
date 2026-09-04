@@ -84,6 +84,8 @@ approved repository publication.
 Read [working agreements](AGENTS.md), [project plan](PROJECT_PLAN.md),
 [metric definitions](docs/metrics.md), [validation protocol](docs/validation_protocol.md),
 [security guidance](SECURITY.md), and [release checklist](docs/release-checklist.md).
+The [draft privacy information](PRIVACY.md) describes the current local data flow and
+remaining distribution gates; it is not yet a finalized or in-app privacy policy.
 
 ## Provider and contact
 
