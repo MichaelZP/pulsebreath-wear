@@ -5,8 +5,12 @@ import org.junit.Test
 import pl.pulsebreath.wear.sensor.*
 
 class TimedIbiTest {
-    private fun sample(values: List<Long>, breaks: Set<Int> = emptySet(), rejects: Int = 0) =
-        SensorSample(10_000, null, values, SensorSignalQuality.GOOD, SensorSourceType.SAMSUNG,
+    private fun sample(
+        values: List<Long>,
+        breaks: Set<Int> = emptySet(),
+        rejects: Int = 0,
+        quality: SensorSignalQuality = SensorSignalQuality.GOOD,
+    ) = SensorSample(10_000, null, values, quality, SensorSourceType.SAMSUNG,
             ibiBreakBeforeIndices = breaks, rejectedIbiCount = rejects)
 
     @Test fun chronologicalIntervalsAreUnwrappedBackwardFromReceipt() {
@@ -32,5 +36,13 @@ class TimedIbiTest {
         assertFalse(invalid.intervals[1].accepted)
         assertNull(invalid.intervals[0].endMillis)
         assertNull(expandBatch(100, sample(listOf(800, 850))).intervals[0].endMillis)
+    }
+
+    @Test fun positiveMappedIntervalsRemainPaceAcceptedWhenBpmQualityFlickers() {
+        for (quality in listOf(SensorSignalQuality.MOTION_ARTIFACT, SensorSignalQuality.SIGNAL_LOST)) {
+            val batch = expandBatch(10_000, sample(listOf(800, 850), quality = quality))
+            assertTrue(batch.intervals.all { it.accepted })
+            assertEquals(listOf(9150L, 10_000L), batch.intervals.map { it.endMillis })
+        }
     }
 }

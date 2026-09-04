@@ -166,7 +166,7 @@ private fun PaceDetails(session: GuidedSessionCoordinator) {
         Text("usedFallback: ${it.usedFallback}")
         Text("Fallback reason: ${it.fallbackReason?.name ?: "none"}", textAlign = TextAlign.Center)
         Text("Estimate mode: ${it.estimateMode.name}", textAlign = TextAlign.Center)
-        Text("Eligible calibration IBIs: ${it.acceptedIbiCount}", textAlign = TextAlign.Center)
+        Text("Accepted placed calibration IBIs: ${it.acceptedIbiCount}", textAlign = TextAlign.Center)
         Text("Longest analyzed segment: ${it.analyzedIbiCount}", textAlign = TextAlign.Center)
     } ?: Text("Calibration cancelled; no pace estimate.")
 }

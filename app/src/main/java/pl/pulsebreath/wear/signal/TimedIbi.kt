@@ -1,7 +1,6 @@
 package pl.pulsebreath.wear.signal
 
 import pl.pulsebreath.wear.sensor.SensorSample
-import pl.pulsebreath.wear.sensor.SensorSignalQuality
 
 /** Receipt-anchored estimate, never a measured beat timestamp. Null means unplaceable. */
 internal data class TimedIbi(
@@ -32,7 +31,9 @@ internal fun expandBatch(receiptMillis: Long, sample: SensorSample): EstimatedIb
     val reversed = mutableListOf<TimedIbi>()
     for (index in values.indices.reversed()) {
         val ibi = values[index]
-        val accepted = ibi > 0 && sample.quality == SensorSignalQuality.GOOD
+        // Samsung mapping has already retained only NORMAL-status IBI values. Pace
+        // placement must not discard those intervals when BPM quality flickers.
+        val accepted = ibi > 0
         if (!accepted) end = null
         reversed.add(TimedIbi(end, ibi, accepted, index,
             index in sample.ibiBreakBeforeIndices || unknownRejectionPosition))

@@ -207,10 +207,13 @@ internal class GuidedSessionCoordinator(
                 }
             }
         }
-        if (batch.trailingBreak || batch.intervals.isEmpty() || sample.quality != SensorSignalQuality.GOOD) {
+        if (stage == GuidedStage.CALIBRATING && batch.trailingBreak) {
             pendingBreak = true
-            if (stage == GuidedStage.CALIBRATING) calibration.add(TimedIbi(null, 0, false, 0, true))
-            else observations.clear()
+            calibration.add(TimedIbi(null, 0, false, 0, true))
+        } else if (stage == GuidedStage.RUNNING &&
+            (batch.trailingBreak || batch.intervals.isEmpty() || sample.quality != SensorSignalQuality.GOOD)) {
+            pendingBreak = true
+            observations.clear()
         }
         if (stage == GuidedStage.RUNNING && sample.quality == SensorSignalQuality.GOOD) {
             sample.beatsPerMinute?.takeIf { it.isFinite() && it > 0 }?.let {

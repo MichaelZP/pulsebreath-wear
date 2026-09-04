@@ -17,6 +17,14 @@ rejected and nonpositive entries split continuous segments, as do `breakBefore`
 markers. Non-increasing or negative placed timestamps also split continuous
 segments; they are never sorted, repaired, or used to invent a beat timeline.
 
+For Samsung, `SamsungHeartRateReadingMapper` places only positive
+`IBI_STATUS_NORMAL` values into `SensorSample.ibiMillis`. pace_v1.1 accepts such
+already-mapped intervals for receipt placement even when the accompanying BPM
+quality status is not `GOOD`. BPM-only callbacks do not create a pace break.
+Explicit IBI reject/break metadata still creates a break. This is pace-only
+acceptance: `quality_v1.1`, HRV and alignment retain their existing GOOD/ADEQUATE
+quality gates and are not evidence supplied to the pace estimator.
+
 An end-to-end time difference that differs from the later IBI by more than 250 ms
 also splits the segment. This is an explicit conservative delivery-jitter heuristic,
 not a claim that smaller discrepancies validate beat timestamps. The caller must

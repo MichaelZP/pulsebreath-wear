@@ -35,8 +35,13 @@ class GuidedSessionCoordinatorTest {
         fun advance(to: Long) {
             while (now < to) { now = minOf(to, now + 50); owner.tick() }
         }
-        fun emit(values: List<Long>, breaks: Set<Int> = emptySet(), rejected: Int = 0) {
-            sources.last().sample(SensorSample(now, 60.0, values, SensorSignalQuality.GOOD,
+        fun emit(
+            values: List<Long>,
+            breaks: Set<Int> = emptySet(),
+            rejected: Int = 0,
+            quality: SensorSignalQuality = SensorSignalQuality.GOOD,
+        ) {
+            sources.last().sample(SensorSample(now, 60.0, values, quality,
                 SensorSourceType.SAMSUNG, breaks, rejected))
         }
         fun emitSuccessfulCalibrationAttempt() {
@@ -70,6 +75,23 @@ class GuidedSessionCoordinatorTest {
         h.owner.tick()
         assertFalse(h.owner.estimate!!.usedFallback)
         assertEquals(PaceCalibrator.estimate(beats).cycleMillis, h.owner.config.cycleDurationMillis)
+    }
+    @Test fun calibrationKeepsMappedIbiWhenBpmQualityIsNotGood() {
+        val h = Harness()
+        h.owner.calibrate()
+        var time = 0L
+        while (true) {
+            val ibi = (800 + 65 * sin(2 * PI * time / 10_000)).roundToLong()
+            time += ibi
+            if (time > 35_000) break
+            h.now = time
+            h.emit(listOf(ibi), quality = SensorSignalQuality.MOTION_ARTIFACT)
+        }
+        h.now = 35_000
+        h.owner.tick()
+        assertEquals(GuidedStage.READY, h.owner.stage)
+        assertFalse(h.owner.estimate!!.usedFallback)
+        assertTrue(h.owner.estimate!!.acceptedIbiCount >= 12)
     }
     @Test fun noDataCalibrationRetriesExactlyTenTimesThenStops() {
         val h = Harness()
