@@ -11,9 +11,20 @@ internal object SamsungHeartRateReadingMapper {
         ibiValuesMillis: List<Int>,
         ibiStatuses: List<Int>,
     ): SensorSample {
-        val validIbi = ibiValuesMillis.zip(ibiStatuses)
-            .filter { (ibi, status) -> status == IBI_STATUS_NORMAL && ibi > 0 }
-            .map { (ibi, _) -> ibi.toLong() }
+        val validIbi = mutableListOf<Long>()
+        val breaks = mutableSetOf<Int>()
+        var rejectedCount = 0
+        // Include unmatched entries; zip would silently truncate them.
+        repeat(maxOf(ibiValuesMillis.size, ibiStatuses.size)) { index ->
+            val ibi = ibiValuesMillis.getOrNull(index)
+            val status = ibiStatuses.getOrNull(index)
+            if (ibi != null && ibi > 0 && status == IBI_STATUS_NORMAL) {
+                validIbi.add(ibi.toLong())
+            } else {
+                breaks.add(validIbi.size)
+                rejectedCount += 1
+            }
+        }
 
         return SensorSample(
             monotonicTimestampMillis = monotonicTimestampMillis,
@@ -23,6 +34,8 @@ internal object SamsungHeartRateReadingMapper {
             ibiMillis = validIbi,
             quality = qualityFor(heartRateStatus),
             sourceType = SensorSourceType.SAMSUNG,
+            ibiBreakBeforeIndices = breaks,
+            rejectedIbiCount = rejectedCount,
         )
     }
 

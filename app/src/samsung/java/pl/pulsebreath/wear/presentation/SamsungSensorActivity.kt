@@ -206,12 +206,13 @@ private fun SamsungSensorApp(
                         textAlign = TextAlign.Center,
                     )
                     Text(
-                        text = metrics.rmssdMillis?.let {
+                        text = metrics.displayRmssdMillis?.let {
                             String.format(Locale.US, "RMSSD: %.1f ms", it)
                         }
-                            ?: "RMSSD: waiting",
+                            ?: "RMSSD: unavailable (quality or continuity)",
                         textAlign = TextAlign.Center,
                     )
+                    Text("Rejected IBI entries: ${metrics.rejectedIbiCount}")
                     if (status.state == SensorStreamState.CONNECTING ||
                         status.state == SensorStreamState.TRACKING
                     ) {

@@ -9,6 +9,17 @@ import org.junit.Test
 
 class HrvAnalyzerTest {
     @Test
+    fun displayRequiresAdequateQualityEvenWhenArithmeticRmssdExists() {
+        val values = (0 until 10).map { index ->
+            sample(index * 1000L, listOf(if (index % 2 == 0) 1000L else 900L))
+        }
+        val short = HrvAnalyzer.analyze(values.take(2))
+        assertEquals(100.0, short.rmssdMillis!!, 0.0)
+        assertNull(short.displayRmssdMillis)
+        assertEquals(100.0, HrvAnalyzer.analyze(values).displayRmssdMillis!!, 0.0)
+    }
+
+    @Test
     fun metricsMatchIndependentQualityV1Fixture() {
         loadFixture().forEach { row ->
             val metrics = HrvAnalyzer.analyze(row.samples)

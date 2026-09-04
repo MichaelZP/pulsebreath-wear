@@ -184,7 +184,7 @@ internal fun FakeSensorDiagnosticsScreen(
             )
             Text(
                 text =
-                    currentMetrics.rmssdMillis?.let {
+                    currentMetrics.displayRmssdMillis?.let {
                         stringResource(R.string.rmssd_value, it)
                     } ?: stringResource(R.string.rmssd_unavailable),
                 textAlign = TextAlign.Center,

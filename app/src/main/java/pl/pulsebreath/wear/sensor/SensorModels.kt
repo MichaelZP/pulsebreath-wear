@@ -20,6 +20,9 @@ internal data class SensorSample(
     val ibiMillis: List<Long>,
     val quality: SensorSignalQuality,
     val sourceType: SensorSourceType,
+    // Index into retained IBI; size denotes a break after the final interval.
+    val ibiBreakBeforeIndices: Set<Int> = emptySet(),
+    val rejectedIbiCount: Int = 0,
 )
 
 internal data class SensorSampleRequest(

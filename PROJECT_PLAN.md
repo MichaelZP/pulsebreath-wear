@@ -156,6 +156,8 @@ Implementation status (2026-09-04): `alignment_v1` is implemented and automatica
 
 Acceptance: the protocol, exclusion rules, comparison metrics, and limitations are reproducible.
 
+Implementation status (2026-09-04): preliminary self-test confirmed start/stop and summary retention. Accuracy validation remains open. A `quality_v1.1` correction preserves rejected-IBI boundaries and suppresses displayed RMSSD for insufficient windows. See `docs/validation_protocol.md` and `docs/milestone-7.md`; participant readings are not stored in Git.
+
 ### Milestone 8 - GitHub, releases, and distribution review
 
 - Add complete repository documentation, SDK installation instructions, security guidance, and an SDK-independent GitHub Actions workflow.
@@ -192,9 +194,9 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 
 ## Immediate next actions
 
-1. Run the complete unit, lint, build, and emulator checks for Milestone 6.
-2. Let the user review `alignment_v1` in the debug-only diagnostics and its explicit unavailable states.
-3. Wait for explicit approval before committing Milestone 6 or starting the validation milestone.
+1. Review the validation protocol and its data-minimization boundary.
+2. Repeat the already authorized self-test after verifying and installing the continuity correction.
+3. Pause for privacy and ethics review before involving another participant.
 
 ## Official references
 

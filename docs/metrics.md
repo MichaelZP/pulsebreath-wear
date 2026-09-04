@@ -1,5 +1,33 @@
 # PulseBreath metrics specification
 
+## quality_v1.1 continuity correction (Milestone 7)
+
+This revision preserves source rejection boundaries without changing the 60-second
+window, 10-valid-IBI minimum or 80% event-coverage threshold from quality_v1.
+The Samsung mapper retains accepted IBI and records break indices between them.
+Index zero breaks continuity with the previous event; index equal to the retained
+list size breaks continuity with the following event. A rejected-only event also
+breaks continuity. Truly empty events (both SDK lists empty) retain the existing
+behavior and do not imply a rejection.
+
+Non-normal status, nonpositive value, missing status or missing value generates
+a rejection boundary. `rejectedIbiCount` counts these source entries, including
+unmatched list entries; it is separate from `invalidIbiCount`, which counts
+nonpositive values supplied directly to the analyzer. Rejected values never
+enter the numeric IBI list. Consecutive rejection boundaries may collapse to
+one index but their count is retained. No synthetic numeric interval is inserted.
+
+RMSSD arithmetic is unchanged, but differences never cross these boundaries.
+The UI now uses `displayRmssdMillis`, absent for INSUFFICIENT windows. The raw
+calculation remains internal for deterministic tests. ADEQUATE is still a
+provisional completeness label, not a validation of physiological accuracy.
+No missing-beat inference, de-duplication or beat-timestamp reconstruction was
+added; events still use callback receipt time. These limitations remain open.
+
+Synthetic regression example: accepted `[1000, 900]`, rejected entry, accepted
+`[1400, 1300]` gives two differences of -100 ms and RMSSD 100 ms. The 500 ms
+difference across the rejection must not be included. This example is fabricated.
+
 Algorithm version: `quality_v1`  
 Status: implemented and verified with deterministic fixtures; not clinically validated
 

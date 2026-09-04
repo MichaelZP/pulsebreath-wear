@@ -24,7 +24,11 @@ internal data class HrvMetrics(
     val meanBpm: Double?,
     val rmssdMillis: Double?,
     val quality: HrvWindowQuality,
-)
+    val rejectedIbiCount: Int = 0,
+) {
+    val displayRmssdMillis: Double?
+        get() = rmssdMillis.takeIf { quality == HrvWindowQuality.ADEQUATE }
+}
 
 internal object HrvAnalyzer {
     fun analyze(
@@ -55,6 +59,7 @@ internal object HrvAnalyzer {
 
         var validIbiCount = 0
         var invalidIbiCount = 0
+        var rejectedIbiCount = 0
         var validIbiEventCount = 0
         var goodSampleEventCount = 0
         val validBpmValues = mutableListOf<Double>()
@@ -63,6 +68,7 @@ internal object HrvAnalyzer {
         var differenceCount = 0
 
         windowSamples.forEach { sample ->
+            rejectedIbiCount += sample.rejectedIbiCount
             if (sample.quality != SensorSignalQuality.GOOD) {
                 invalidIbiCount += sample.ibiMillis.count { it <= 0L }
                 previousValidIbi = null
@@ -75,7 +81,8 @@ internal object HrvAnalyzer {
                 ?.let(validBpmValues::add)
 
             var eventHasValidIbi = false
-            sample.ibiMillis.forEach { ibiMillis ->
+            sample.ibiMillis.forEachIndexed { index, ibiMillis ->
+                if (index in sample.ibiBreakBeforeIndices) previousValidIbi = null
                 if (ibiMillis <= 0L) {
                     invalidIbiCount += 1
                     previousValidIbi = null
@@ -90,6 +97,7 @@ internal object HrvAnalyzer {
                     previousValidIbi = ibiMillis
                 }
             }
+            if (sample.ibiMillis.size in sample.ibiBreakBeforeIndices) previousValidIbi = null
             if (eventHasValidIbi) {
                 validIbiEventCount += 1
             }
@@ -118,6 +126,7 @@ internal object HrvAnalyzer {
             validIbiEventCount = validIbiEventCount,
             validIbiCount = validIbiCount,
             invalidIbiCount = invalidIbiCount,
+            rejectedIbiCount = rejectedIbiCount,
             ibiEventCoveragePercent = coverage,
             meanBpm = validBpmValues.averageOrNull(),
             rmssdMillis =
