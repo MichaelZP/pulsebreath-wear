@@ -28,6 +28,7 @@ import pl.pulsebreath.wear.sensor.SensorStreamState
 import pl.pulsebreath.wear.sensor.TimingDiagnostics
 import pl.pulsebreath.wear.session.GuidedSessionCoordinator
 import pl.pulsebreath.wear.session.GuidedStage
+import pl.pulsebreath.wear.session.BreathingPhase
 import java.util.Locale
 
 internal fun requiredHeartRatePermission(): String =
@@ -62,6 +63,18 @@ class SamsungSensorActivity : ComponentActivity() {
         setContent {
             // Observable revision publishes the serialized owner's current snapshot.
             @Suppress("UNUSED_VARIABLE") val currentRevision = revision
+            val haptics = remember { SessionHaptics(applicationContext) }
+            val hapticEdges = remember { SessionHapticEdges() }
+            LaunchedEffect(session.stage, session.cue.phase) {
+                if (hapticEdges.readyTransition(session.stage == GuidedStage.READY)) haptics.ready()
+                when (hapticEdges.phaseTransition(session.stage == GuidedStage.RUNNING, session.cue.phase)) {
+                    BreathingPhase.INHALE -> haptics.inhale()
+                    BreathingPhase.EXHALE -> haptics.exhale()
+                    null -> Unit
+                }
+                if (session.stage != GuidedStage.RUNNING && session.stage != GuidedStage.READY) haptics.cancel()
+            }
+            DisposableEffect(Unit) { onDispose { haptics.cancel() } }
             LaunchedEffect(session.stage) {
                 while (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING) {
                     session.tick()

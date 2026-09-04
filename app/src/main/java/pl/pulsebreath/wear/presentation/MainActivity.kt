@@ -15,8 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.ScreenScaffold
@@ -84,17 +82,18 @@ internal fun PulseBreathApp(
         }
     }
 
-    val hapticFeedback = LocalHapticFeedback.current
+    val haptics = remember { SessionHaptics(rootView.context) }
     var lastHapticPhase by remember { mutableStateOf<BreathingPhase?>(null) }
 
     LaunchedEffect(sessionState.status, snapshot.phase) {
         if (sessionState.status == BreathingSessionStatus.RUNNING) {
             if (snapshot.phase != lastHapticPhase) {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
+                if (snapshot.phase == BreathingPhase.INHALE) haptics.inhale() else haptics.exhale()
                 lastHapticPhase = snapshot.phase
             }
         } else if (sessionState.status != BreathingSessionStatus.PAUSED) {
             lastHapticPhase = null
+            haptics.cancel()
         }
     }
 

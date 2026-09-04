@@ -84,3 +84,8 @@ zero errors, two existing demo warnings (`ModifierParameter`, `WearRecents`) and
 one existing Samsung warning (`ModifierParameter`). No new lint warnings remain.
 The pre-existing uncommitted demo screen/tests were present during verification
 and are excluded from this focused commit.
+# Haptics
+
+The guided Wear session signals READY with one 55 ms pulse. Each RUNNING phase edge
+uses 25 ms + 25 ms with a 45 ms gap for inhale, and one 85 ms pulse for exhale.
+Calibration retries are silent. Haptics are edge-gated and cancelled on stop/cancel.
