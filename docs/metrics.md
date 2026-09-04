@@ -140,7 +140,8 @@ For events `GOOD([1000, 900])`, `MOTION_ARTIFACT([])`, `GOOD([1100])`, no RMSSD 
 # PulseBreath breathing-alignment specification
 
 Algorithm version: `alignment_v1`
-Status: implemented for deterministic simulated data only; not clinically validated
+Status: implemented for deterministic and live Samsung IBI inputs; experimental,
+wellness-only, and not clinically validated
 
 ## Scope and safety
 
@@ -212,19 +213,21 @@ Otherwise the result is absent with one of these explicit states:
 
 ## Calibration boundary
 
-The fixed-rate score is a prerequisite for an experimental multi-rate protocol;
-it is not itself a calibration. No rate is selected, persisted, or presented as
-an individual's resonance frequency in this milestone. Any future calibration
-must compare predeclared equal-duration trials, report the raw score and data
-quality of every trial, allow cancellation, and be validated against a written
-protocol before it is used with real data.
+The fixed-rate score is not itself a calibration and does not validate resonance.
+The Samsung guided session can display it for live IBI after its separate
+experimental `pace_v1` calibration, but the score neither selects nor proves an
+individual's resonance frequency. It is wellness-only, not clinical. Any future
+multi-rate protocol must compare predeclared equal-duration trials, report the
+raw score and data quality of every trial, allow cancellation, and be validated
+against a written protocol before it is used with real data.
 
 ## Validation status and limits
 
 - Unit tests cover ideal, inverted (phase-shifted), noisy, missing-data, and
   non-respiratory inputs.
-- The simulated input proves only arithmetic and state handling. It does not
-  validate the formula against a person, an ECG, or a chest-respiration signal.
+- Deterministic tests prove only arithmetic and state handling. The live Samsung
+  wiring is not physical-watch verification and does not validate the formula
+  against a person, an ECG, or a chest-respiration signal.
 - The watch may batch IBI values and its timestamps may not identify the exact
   beat phase; this version attaches an event's IBI values to the visible cue at
   that event timestamp.

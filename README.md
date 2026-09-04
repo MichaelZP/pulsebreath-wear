@@ -10,10 +10,17 @@ No public release or accuracy certification is implied by the internal version `
 
 - Sensor-free guided breathing with pause, resume, stop, animation and haptics.
 - Deterministic simulated BPM/IBI scenarios and debug diagnostics.
-- Separate Samsung sensor screen with real BPM/IBI, quality gating and basic HRV.
+- A separate Samsung guided session: it calibrates from real IBI, then runs the
+  trainer with that pace or an explicit 4.5 s inhale / 5.5 s exhale fallback.
+- The Samsung session reports real BPM/IBI, quality gating and basic HRV during
+  its guided run.
 - Rejected IBI boundaries are preserved; insufficient windows display RMSSD as unavailable.
-- Breathing alignment is a simulator experiment, not measured respiration or resonance calibration.
-- The real sensor screen is not integrated with the breathing trainer.
+- `alignment_v1` on live IBI is experimental and wellness-only; it is neither a
+  clinical measure nor validated resonance or measured respiration.
+- `pace_v1` estimates IBI periodicity, not chest respiration. Wrist PPG IBI is
+  not established ECG NN data; weak or discontinuous data uses the explicit
+  fallback and shows its reason.
+- The sensor-free `MainActivity` trainer remains a separate mode.
 - No cloud, account, persistence or export feature. Accuracy and Polar H10 comparison remain unvalidated.
 
 ## Build locally
@@ -83,6 +90,8 @@ approved repository publication.
 
 Read [working agreements](AGENTS.md), [project plan](PROJECT_PLAN.md),
 [metric definitions](docs/metrics.md), [validation protocol](docs/validation_protocol.md),
+[Samsung guided-session limits](docs/samsung-guided-session.md), and
+[pace_v1 limits](docs/pace_v1.md),
 [security guidance](SECURITY.md), and [release checklist](docs/release-checklist.md).
 The [draft privacy information](PRIVACY.md) describes the current local data flow and
 remaining distribution gates; it is not yet a finalized or in-app privacy policy.

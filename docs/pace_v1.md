@@ -66,8 +66,10 @@ The caller must display fallback honestly and map the durations into
 `BreathingSessionConfig` only after calibration. Existing `quality_v1.1` and
 `alignment_v1` are unchanged. This estimator's count is not a replacement for
 raw-event quality coverage. Receipt anchoring remains an unvalidated timing
-estimate. Wrist PPG intervals are not established ECG NN intervals, and synthetic
-period recovery does not establish live breathing accuracy.
+estimate. Wrist PPG intervals are not established ECG NN intervals, calibration
+does not measure chest respiration, and an estimate is never a validated
+resonance frequency. Synthetic period recovery and the live-session wiring do
+not establish live breathing accuracy.
 
 ## Verification
 
