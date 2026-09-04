@@ -25,3 +25,5 @@ local.properties
 *.apk
 *.aab
 /private-data/
+__pycache__/
+*.pyc

@@ -9,10 +9,14 @@ creation, visibility, push, tag, release and store submission operation. No remo
   device identifiers, participant data and proprietary binaries. Pattern scans are not proof
   of absence; review images and archives too. Never publish local build output.
 - Inventory resolved direct/transitive dependencies and preserve required license/NOTICE files.
-  This dependency and vulnerability/license audit is still pending; Apache-2.0 covers only
-  original project material. Obtain and retain Samsung SDK terms separately.
+  The 259-coordinate inventory and extracted notices are now in `THIRD_PARTY_LICENSES.md`.
+  Vulnerability scanning and final distribution compliance review remain pending. Apache-2.0
+  covers only original project material. Samsung terms were supplied for private review;
+  confirm applicability and source/binary publication clearance separately.
 - Review provenance of Android Studio template icons, other artwork, project name and branding.
-  Trademark/artwork clearance is pending; do not imply affiliation or certified accuracy.
+  Current icons are original heart-and-lungs vectors; old robot rasters are removed and
+  historical credit is retained in NOTICE. Name/trademark clearance remains pending;
+  do not imply affiliation or certified accuracy.
 - Configure a private security-reporting channel and contributor/privacy policy before soliciting users.
 - Build the demo from a clean SDK-free checkout and run unit tests and lint.
 - After publication is explicitly approved, verify the actual remote and first GitHub CI run.

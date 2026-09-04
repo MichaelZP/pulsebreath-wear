@@ -1,0 +1,26 @@
+PulseBreath Wear
+
+Original project source and the heart-and-lungs vector artwork are made
+available under the Apache License, Version 2.0 (see LICENSE).
+The new icon was drawn for this project on 2026-09-04; it is not derived
+from the Android robot or a third-party icon pack.
+
+Third-party components retain their respective copyright and license terms.
+See THIRD_PARTY_LICENSES.md and docs/licenses/ for the dependency inventory,
+upstream notices, source evidence and tooling-specific terms.
+Runtime dependency information and Apache-2.0 text are also included under
+assets/open_source in the APK. This does not relicense Samsung software.
+
+Historical artwork attribution (earlier Git revisions only):
+The Android robot artwork was created and shared by Google and used in
+Android Studio template launcher/splash resources, including adapted colors
+and composition. That historical artwork is subject to Creative Commons
+Attribution 3.0: https://creativecommons.org/licenses/by/3.0/
+Source and attribution guidance:
+https://developer.android.com/distribute/marketing-tools/brand-guidelines
+The robot artwork has been removed from current application resources.
+Earlier Git history has not been rewritten; this notice retains its credit.
+
+Android is a trademark of Google LLC. Samsung, Galaxy Watch, Java, Gradle,
+Eclipse Temurin and other referenced names belong to their respective owners.
+No affiliation, endorsement, trademark clearance or clinical validation is implied.

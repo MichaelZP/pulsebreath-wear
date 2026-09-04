@@ -1,5 +1,7 @@
 # PulseBreath Wear
 
+![PulseBreath heart and lungs](docs/assets/pulsebreath-logo.svg)
+
 Standalone Wear OS breathing trainer and experimental sensor diagnostics.
 Educational wellness/research prototype, not a medical or diagnostic device.
 No public release or accuracy certification is implied by the internal version `1.0`.
@@ -88,3 +90,7 @@ Read [working agreements](AGENTS.md), [project plan](PROJECT_PLAN.md),
 Original project source is licensed under [Apache-2.0](LICENSE).
 Third-party libraries, SDKs and artwork retain their own terms. No Samsung affiliation,
 trademark clearance or right to redistribute the Samsung SDK is claimed.
+See [third-party licenses](THIRD_PARTY_LICENSES.md) for the resolved dependency list,
+retained upstream notices, tooling terms and pending Samsung distribution clearance.
+The current logo is original heart-and-lungs artwork; historical Android robot credits
+are retained in [NOTICE](NOTICE).

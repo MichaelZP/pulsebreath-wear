@@ -1,0 +1,82 @@
+{
+  "org.gradle.toolchains.foojay-resolver-convention:org.gradle.toolchains.foojay-resolver-convention.gradle.plugin:1.0.0": {
+    "licenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      }
+    ],
+    "source": "https://github.com/gradle/foojay-toolchains/blob/2a6cc60ed8d35e025e44193c895502996c8edf4e/LICENSE",
+    "reason": "License in the exact 1.0.0 upstream source tag; omitted from POM."
+  },
+  "org.gradle.toolchains:foojay-resolver:1.0.0": {
+    "licenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      }
+    ],
+    "source": "https://github.com/gradle/foojay-toolchains/blob/2a6cc60ed8d35e025e44193c895502996c8edf4e/LICENSE",
+    "reason": "License in the exact 1.0.0 upstream source tag; omitted from POM."
+  },
+  "javax.inject:javax.inject:1": {
+    "licenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0"
+      }
+    ],
+    "source": "https://github.com/javax-inject/javax-inject#license",
+    "reason": "JSR-330 upstream project license; old POM omits license."
+  },
+  "net.sf.kxml:kxml2:2.3.0": {
+    "licenses": [
+      {
+        "name": "MIT",
+        "url": "https://opensource.org/license/mit"
+      }
+    ],
+    "source": "https://repo.maven.apache.org/maven2/net/sf/kxml/kxml2/2.3.0/kxml2-2.3.0-sources.jar",
+    "reason": "Inspected copyright and permission header in org/kxml2/io/KXmlParser.java from exact sources.jar."
+  },
+  "org.bouncycastle:bcpkix-jdk18on:1.80.2": {
+    "licenses": [
+      {
+        "name": "Bouncy Castle License (MIT-style)",
+        "url": "https://www.bouncycastle.org/licence.html"
+      }
+    ],
+    "source": "https://www.bouncycastle.org/licence.html",
+    "reason": "Publisher license reviewed 2026-09-04; current project-wide terms, not a recovered version-specific POM declaration."
+  },
+  "org.bouncycastle:bcprov-jdk18on:1.80.2": {
+    "licenses": [
+      {
+        "name": "Bouncy Castle License (MIT-style)",
+        "url": "https://www.bouncycastle.org/licence.html"
+      }
+    ],
+    "source": "https://www.bouncycastle.org/licence.html",
+    "reason": "Publisher license reviewed 2026-09-04; current project-wide terms, not a recovered version-specific POM declaration."
+  },
+  "org.bouncycastle:bcutil-jdk18on:1.80.2": {
+    "licenses": [
+      {
+        "name": "Bouncy Castle License (MIT-style)",
+        "url": "https://www.bouncycastle.org/licence.html"
+      }
+    ],
+    "source": "https://www.bouncycastle.org/licence.html",
+    "reason": "Publisher license reviewed 2026-09-04; current project-wide terms, not a recovered version-specific POM declaration."
+  },
+  "org.jdom:jdom2:2.0.6": {
+    "licenses": [
+      {
+        "name": "JDOM License (BSD-style, naming restrictions)",
+        "url": "https://www.jdom.org/docs/faq.html"
+      }
+    ],
+    "source": "jdom2-2.0.6.jar!/META-INF/LICENSE.txt",
+    "reason": "Exact distributed LICENSE.txt retained in upstream-notices; do not simplify to Apache-2.0."
+  }
+}
