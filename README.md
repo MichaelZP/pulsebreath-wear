@@ -85,6 +85,15 @@ Read [working agreements](AGENTS.md), [project plan](PROJECT_PLAN.md),
 [metric definitions](docs/metrics.md), [validation protocol](docs/validation_protocol.md),
 [security guidance](SECURITY.md), and [release checklist](docs/release-checklist.md).
 
+## Provider and contact
+
+Provider and maintainer: **Michał Przybylski**.
+General contact: [LinkedIn](https://www.linkedin.com/in/micha%C5%82-przybylski-323a4948/).
+This profile was supplied by the maintainer; message availability has not been verified.
+No project email address is designated. LinkedIn is not a designated confidential
+vulnerability-reporting channel. Do not send health data, credentials or sensitive
+security details through public posts or comments; see [security guidance](SECURITY.md).
+
 ## License
 
 Original project source is licensed under [Apache-2.0](LICENSE).

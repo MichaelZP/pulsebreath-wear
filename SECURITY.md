@@ -1,6 +1,14 @@
 # Security and privacy
 
 This unreleased prototype has no production support commitment.
+Provider and maintainer: **Michał Przybylski**.
+For an initial, non-sensitive contact, use the maintainer-supplied
+[LinkedIn profile](https://www.linkedin.com/in/micha%C5%82-przybylski-323a4948/).
+No project email address is designated. LinkedIn messaging availability has not been
+verified, and the profile is not a designated confidential vulnerability-reporting channel.
+Use initial contact only to arrange an appropriate private channel; do not post sensitive
+reports publicly or send health records through LinkedIn.
+
 Do not submit real health measurements, watch identifiers, pairing codes, credentials,
 keystores or unredacted screenshots in issues, logs or pull requests.
 Use synthetic minimal reproductions. No private reporting channel is configured yet;
