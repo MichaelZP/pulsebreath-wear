@@ -2,6 +2,7 @@ package pl.pulsebreath.wear.sensor
 
 import android.content.Context
 import android.os.SystemClock
+import java.util.concurrent.atomic.AtomicLong
 import com.samsung.android.service.health.tracking.ConnectionListener
 import com.samsung.android.service.health.tracking.HealthTracker
 import com.samsung.android.service.health.tracking.HealthTrackerException
@@ -21,12 +22,15 @@ internal class SamsungSensorDataSource(
     private var tracker: HealthTracker? = null
     private var onStatus: ((SensorStreamStatus) -> Unit)? = null
     private var onSample: ((SensorSample) -> Unit)? = null
+    private val callbackSequence = AtomicLong(0L)
 
     private val trackerListener = object : HealthTracker.TrackerEventListener {
         override fun onDataReceived(dataPoints: List<DataPoint>) {
             if (!active) return
 
-            dataPoints.forEach { dataPoint ->
+            val receivedElapsedMillis = SystemClock.elapsedRealtime()
+            val sequence = callbackSequence.getAndIncrement()
+            dataPoints.forEachIndexed { index, dataPoint ->
                 val heartRate = dataPoint.getValue(ValueKey.HeartRateSet.HEART_RATE)
                 val heartRateStatus =
                     dataPoint.getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS)
@@ -37,11 +41,20 @@ internal class SamsungSensorDataSource(
 
                 onSample?.invoke(
                     SamsungHeartRateReadingMapper.map(
-                        monotonicTimestampMillis = SystemClock.elapsedRealtime(),
+                        monotonicTimestampMillis = receivedElapsedMillis,
                         heartRate = heartRate,
                         heartRateStatus = heartRateStatus,
                         ibiValuesMillis = ibiValues,
                         ibiStatuses = ibiStatuses,
+                        timing = SensorTiming(
+                            receivedElapsedMillis = receivedElapsedMillis,
+                            sdkTimestampMillis = dataPoint.timestamp,
+                            callbackSequence = sequence,
+                            pointIndex = index,
+                            pointCount = dataPoints.size,
+                            rawIbiCount = ibiValues.size,
+                            rawStatusCount = ibiStatuses.size,
+                        ),
                     ),
                 )
             }

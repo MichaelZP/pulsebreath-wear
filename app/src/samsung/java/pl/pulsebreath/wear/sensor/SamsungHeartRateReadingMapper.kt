@@ -10,6 +10,7 @@ internal object SamsungHeartRateReadingMapper {
         heartRateStatus: Int,
         ibiValuesMillis: List<Int>,
         ibiStatuses: List<Int>,
+        timing: SensorTiming? = null,
     ): SensorSample {
         val validIbi = mutableListOf<Long>()
         val breaks = mutableSetOf<Int>()
@@ -36,6 +37,7 @@ internal object SamsungHeartRateReadingMapper {
             sourceType = SensorSourceType.SAMSUNG,
             ibiBreakBeforeIndices = breaks,
             rejectedIbiCount = rejectedCount,
+            timing = timing,
         )
     }
 
