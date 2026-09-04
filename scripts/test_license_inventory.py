@@ -10,6 +10,18 @@ from license_inventory import licenses_for, embedded_notices, digest
 
 
 class LicenseInventoryTest(unittest.TestCase):
+    def test_unnamespaced_pom_license_is_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            path = cache / 'example' / 'legacy' / '1' / 'hash' / 'legacy.pom'
+            path.parent.mkdir(parents=True)
+            path.write_text('<project><licenses><license><name>Legacy license</name>'
+                            '<url>https://example.invalid/license</url></license></licenses></project>')
+            licenses, evidence, issues = licenses_for('example:legacy:1', cache)
+            self.assertEqual(licenses[0]['name'], 'Legacy license')
+            self.assertEqual(len(evidence), 1)
+            self.assertEqual(issues, [])
+
     def test_parent_license_is_inherited_with_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:
             cache = Path(tmp)

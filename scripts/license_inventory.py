@@ -33,16 +33,18 @@ def licenses_for(coordinate, cache, visited=None):
         return [], [], ['Ambiguous cached POM: ' + coordinate]
     raw = candidates[0].read_bytes()
     xml = ET.fromstring(raw)
+    # Older Maven POMs can omit the XML namespace (for example JDOM).
+    namespaces = {'m': ''} if xml.tag == 'project' else NS
     evidence = [{'coordinate': coordinate, 'pomSha256': digest(raw)}]
     found = []
-    for entry in xml.findall('m:licenses/m:license', NS):
-        found.append({'name': entry.findtext('m:name', '', NS),
-                      'url': entry.findtext('m:url', '', NS)})
+    for entry in xml.findall('m:licenses/m:license', namespaces):
+        found.append({'name': entry.findtext('m:name', '', namespaces),
+                      'url': entry.findtext('m:url', '', namespaces)})
     if found:
         return found, evidence, []
-    parent = xml.find('m:parent', NS)
+    parent = xml.find('m:parent', namespaces)
     if parent is not None:
-        key = ':'.join(parent.findtext('m:' + part, '', NS)
+        key = ':'.join(parent.findtext('m:' + part, '', namespaces)
                        for part in ('groupId', 'artifactId', 'version'))
         inherited, parents, issues = licenses_for(key, cache, visited)
         return inherited, evidence + parents, issues

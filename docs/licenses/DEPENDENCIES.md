@@ -193,21 +193,21 @@ Build and test dependencies are not necessarily shipped in an APK.
 | `commons-logging:commons-logging:1.2` | The Apache Software License, Version 2.0 | build |
 | `jakarta.activation:jakarta.activation-api:1.2.1` | EDL 1.0 | build |
 | `jakarta.xml.bind:jakarta.xml.bind-api:2.3.2` | Eclipse Distribution License - v 1.0 | build |
-| `javax.inject:javax.inject:1` | Apache-2.0 | build, test |
+| `javax.inject:javax.inject:1` | The Apache Software License, Version 2.0 | build, test |
 | `junit:junit:4.13.2` | Eclipse Public License 1.0 | test |
 | `net.java.dev.jna:jna-platform:5.6.0` | LGPL, version 2.1; Apache License v2.0 | build |
 | `net.java.dev.jna:jna:5.6.0` | LGPL, version 2.1; Apache License v2.0 | build |
 | `net.sf.jopt-simple:jopt-simple:4.9` | The MIT License | build |
-| `net.sf.kxml:kxml2:2.3.0` | MIT | build |
+| `net.sf.kxml:kxml2:2.3.0` | BSD style; Public Domain | build |
 | `org.apache.commons:commons-compress:1.27.1` | Apache-2.0 | build |
-| `org.apache.commons:commons-lang3:3.16.0` | Apache-2.0 | build |
+| `org.apache.commons:commons-lang3:3.18.0` | Apache-2.0 | build |
 | `org.apache.httpcomponents:httpclient:4.5.14` | Apache License, Version 2.0 | build |
 | `org.apache.httpcomponents:httpcore:4.4.16` | Apache License, Version 2.0 | build |
 | `org.apache.httpcomponents:httpmime:4.5.6` | Apache License, Version 2.0 | build |
-| `org.bitbucket.b_c:jose4j:0.9.5` | The Apache Software License, Version 2.0 | build |
-| `org.bouncycastle:bcpkix-jdk18on:1.80.2` | Bouncy Castle License (MIT-style) | build |
-| `org.bouncycastle:bcprov-jdk18on:1.80.2` | Bouncy Castle License (MIT-style) | build |
-| `org.bouncycastle:bcutil-jdk18on:1.80.2` | Bouncy Castle License (MIT-style) | build |
+| `org.bitbucket.b_c:jose4j:0.9.6` | The Apache Software License, Version 2.0 | build |
+| `org.bouncycastle:bcpkix-jdk18on:1.80.2` | Bouncy Castle Licence | build |
+| `org.bouncycastle:bcprov-jdk18on:1.80.2` | Bouncy Castle Licence | build |
+| `org.bouncycastle:bcutil-jdk18on:1.80.2` | Bouncy Castle Licence | build |
 | `org.checkerframework:checker-qual:3.43.0` | The MIT License | build |
 | `org.glassfish.jaxb:jaxb-runtime:2.3.2` | Eclipse Distribution License - v 1.0 | build |
 | `org.glassfish.jaxb:txw2:2.3.2` | Eclipse Distribution License - v 1.0 | build |
@@ -215,7 +215,7 @@ Build and test dependencies are not necessarily shipped in an APK.
 | `org.gradle.toolchains:foojay-resolver:1.0.0` | Apache-2.0 | build |
 | `org.hamcrest:hamcrest-core:1.3` | New BSD License | test |
 | `org.hamcrest:hamcrest-library:1.3` | New BSD License | test |
-| `org.jdom:jdom2:2.0.6` | JDOM License (BSD-style, naming restrictions) | build |
+| `org.jdom:jdom2:2.0.6.1` | Similar to Apache License but with the acknowledgment clause removed | build |
 | `org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:2.4.10` | Apache-2.0 | build |
 | `org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.4.10` | Apache-2.0 | build |
 | `org.jetbrains.kotlin:fus-statistics-gradle-plugin:2.4.10` | Apache-2.0 | build |

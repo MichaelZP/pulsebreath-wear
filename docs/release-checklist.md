@@ -10,7 +10,9 @@ creation, visibility, push, tag, release and store submission operation. No remo
   of absence; review images and archives too. Never publish local build output.
 - Inventory resolved direct/transitive dependencies and preserve required license/NOTICE files.
   The 259-coordinate inventory and extracted notices are now in `THIRD_PARTY_LICENSES.md`.
-  Vulnerability scanning and final distribution compliance review remain pending. Apache-2.0
+  A scoped OSV scan and three build-dependency fixes are recorded in
+  [the security checkpoint](milestone-8-build-dependency-security.md). The Kotlin finding,
+  full toolchain scanning and final distribution compliance review remain pending. Apache-2.0
   covers only original project material. Samsung terms were supplied for private review;
   confirm applicability and source/binary publication clearance separately.
 - Review provenance of Android Studio template icons, other artwork, project name and branding.

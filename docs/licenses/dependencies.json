@@ -6484,8 +6484,8 @@
       ],
       "licenses": [
         {
-          "name": "Apache-2.0",
-          "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          "name": "The Apache Software License, Version 2.0",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
         }
       ],
       "evidence": [
@@ -6500,17 +6500,7 @@
           "sha256": "91c77044a50c481636c32d916fd89c9118a72195390452c81065080f957de7ff"
         }
       ],
-      "notices": [],
-      "reviewedEvidence": {
-        "licenses": [
-          {
-            "name": "Apache-2.0",
-            "url": "https://www.apache.org/licenses/LICENSE-2.0"
-          }
-        ],
-        "source": "https://github.com/javax-inject/javax-inject#license",
-        "reason": "JSR-330 upstream project license; old POM omits license."
-      }
+      "notices": []
     },
     {
       "coordinate": "junit:junit:4.13.2",
@@ -6652,8 +6642,12 @@
       ],
       "licenses": [
         {
-          "name": "MIT",
-          "url": "https://opensource.org/license/mit"
+          "name": "BSD style",
+          "url": "http://kxml.cvs.sourceforge.net/viewvc/kxml/kxml2/license.txt?view=markup"
+        },
+        {
+          "name": "Public Domain",
+          "url": "http://creativecommons.org/licenses/publicdomain"
         }
       ],
       "evidence": [
@@ -6668,17 +6662,7 @@
           "sha256": "f264dd9f79a1fde10ce5ecc53221eff24be4c9331c830b7d52f2f08a7b633de2"
         }
       ],
-      "notices": [],
-      "reviewedEvidence": {
-        "licenses": [
-          {
-            "name": "MIT",
-            "url": "https://opensource.org/license/mit"
-          }
-        ],
-        "source": "https://repo.maven.apache.org/maven2/net/sf/kxml/kxml2/2.3.0/kxml2-2.3.0-sources.jar",
-        "reason": "Inspected copyright and permission header in org/kxml2/io/KXmlParser.java from exact sources.jar."
-      }
+      "notices": []
     },
     {
       "coordinate": "org.apache.commons:commons-compress:1.27.1",
@@ -6725,7 +6709,7 @@
       ]
     },
     {
-      "coordinate": "org.apache.commons:commons-lang3:3.16.0",
+      "coordinate": "org.apache.commons:commons-lang3:3.18.0",
       "scopes": [
         "build:::classpath"
       ],
@@ -6737,34 +6721,34 @@
       ],
       "evidence": [
         {
-          "coordinate": "org.apache.commons:commons-lang3:3.16.0",
-          "pomSha256": "e280383956c2e72c1deb3a307b3b75f05ee43649b7d43f0215f7b6c7b15eea2c"
+          "coordinate": "org.apache.commons:commons-lang3:3.18.0",
+          "pomSha256": "aa254b373b6f6d46bc9dca86331b072a8ab86eb25ea9921fd439618392e98a16"
         },
         {
-          "coordinate": "org.apache.commons:commons-parent:72",
-          "pomSha256": "4345debfc767b1aeac68abdd72fc67d18b521d4b390372a11b63ff0c586b2320"
+          "coordinate": "org.apache.commons:commons-parent:85",
+          "pomSha256": "d189ff2c0027e96bb65d31e6f227ed2af966169b36af1e973dd5ba08926dc7b5"
         },
         {
-          "coordinate": "org.apache:apache:33",
-          "pomSha256": "d78bd8524c5f8380a190a6525686629a95dfe512df21111383a6d8c0923a4415"
+          "coordinate": "org.apache:apache:35",
+          "pomSha256": "ea297dcd114136e8b8e8b630230d52a76c2fc69f6c5db25d672b1857000728b8"
         }
       ],
       "artifacts": [
         {
-          "name": "commons-lang3-3.16.0.jar",
-          "sha256": "08709dd74d602b705ce4017d26544210056a4ba583d5b20c09373406fe7a00f8"
+          "name": "commons-lang3-3.18.0.jar",
+          "sha256": "4eeeae8d20c078abb64b015ec158add383ac581571cddc45c68f0c9ae0230720"
         }
       ],
       "notices": [
         {
-          "artifact": "commons-lang3-3.16.0.jar",
+          "artifact": "commons-lang3-3.18.0.jar",
           "entry": "META-INF/LICENSE.txt",
-          "file": "upstream-notices/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt"
+          "file": "upstream-notices/b1d2870f1a00e4d7f56576e5f0870cba109e041f8af66866cf5b499478e654e7.txt"
         },
         {
-          "artifact": "commons-lang3-3.16.0.jar",
+          "artifact": "commons-lang3-3.18.0.jar",
           "entry": "META-INF/NOTICE.txt",
-          "file": "upstream-notices/73c3dd73ad54910699e4e364345798d083a9126b9799663d4bdce8d7468b7f66.txt"
+          "file": "upstream-notices/64bc8696af3f6c770521412b85d3a733fa44b2ef5b0f4bd739e0c4d02eca492a.txt"
         }
       ]
     },
@@ -6889,7 +6873,7 @@
       ]
     },
     {
-      "coordinate": "org.bitbucket.b_c:jose4j:0.9.5",
+      "coordinate": "org.bitbucket.b_c:jose4j:0.9.6",
       "scopes": [
         "build:::classpath"
       ],
@@ -6901,14 +6885,14 @@
       ],
       "evidence": [
         {
-          "coordinate": "org.bitbucket.b_c:jose4j:0.9.5",
-          "pomSha256": "bad024180a1b469cbd94e5f2db12841bcac5443d9545607f673cfde677c1d872"
+          "coordinate": "org.bitbucket.b_c:jose4j:0.9.6",
+          "pomSha256": "3fb7fa713e89d42784bdf4d192ece217400040bda7e933886a9f45ce8b9b557e"
         }
       ],
       "artifacts": [
         {
-          "name": "jose4j-0.9.5.jar",
-          "sha256": "808fb3166f3e67dad9811c331029ab1681242fd52b735bc3f33f281167fcc72e"
+          "name": "jose4j-0.9.6.jar",
+          "sha256": "7314af50cde9c99e8eaf43eee617a23edcc6bb43036221064355094999d837ef"
         }
       ],
       "notices": []
@@ -6920,7 +6904,7 @@
       ],
       "licenses": [
         {
-          "name": "Bouncy Castle License (MIT-style)",
+          "name": "Bouncy Castle Licence",
           "url": "https://www.bouncycastle.org/licence.html"
         }
       ],
@@ -6936,17 +6920,7 @@
           "sha256": "d43bacacb557e7e9dd6e03f03ca56213214a646cee584e2c657b0e0b0db4a3f5"
         }
       ],
-      "notices": [],
-      "reviewedEvidence": {
-        "licenses": [
-          {
-            "name": "Bouncy Castle License (MIT-style)",
-            "url": "https://www.bouncycastle.org/licence.html"
-          }
-        ],
-        "source": "https://www.bouncycastle.org/licence.html",
-        "reason": "Publisher license reviewed 2026-09-04; current project-wide terms, not a recovered version-specific POM declaration."
-      }
+      "notices": []
     },
     {
       "coordinate": "org.bouncycastle:bcprov-jdk18on:1.80.2",
@@ -6955,7 +6929,7 @@
       ],
       "licenses": [
         {
-          "name": "Bouncy Castle License (MIT-style)",
+          "name": "Bouncy Castle Licence",
           "url": "https://www.bouncycastle.org/licence.html"
         }
       ],
@@ -6971,17 +6945,7 @@
           "sha256": "b33227f07dce264daf1aac2e798ef109a4901f31abedac53635746dd93679d3b"
         }
       ],
-      "notices": [],
-      "reviewedEvidence": {
-        "licenses": [
-          {
-            "name": "Bouncy Castle License (MIT-style)",
-            "url": "https://www.bouncycastle.org/licence.html"
-          }
-        ],
-        "source": "https://www.bouncycastle.org/licence.html",
-        "reason": "Publisher license reviewed 2026-09-04; current project-wide terms, not a recovered version-specific POM declaration."
-      }
+      "notices": []
     },
     {
       "coordinate": "org.bouncycastle:bcutil-jdk18on:1.80.2",
@@ -6990,7 +6954,7 @@
       ],
       "licenses": [
         {
-          "name": "Bouncy Castle License (MIT-style)",
+          "name": "Bouncy Castle Licence",
           "url": "https://www.bouncycastle.org/licence.html"
         }
       ],
@@ -7006,17 +6970,7 @@
           "sha256": "bc78d32d7ffb141ee27e4fb77df04259d842c899e7e8eaf912f990d7253bd3b4"
         }
       ],
-      "notices": [],
-      "reviewedEvidence": {
-        "licenses": [
-          {
-            "name": "Bouncy Castle License (MIT-style)",
-            "url": "https://www.bouncycastle.org/licence.html"
-          }
-        ],
-        "source": "https://www.bouncycastle.org/licence.html",
-        "reason": "Publisher license reviewed 2026-09-04; current project-wide terms, not a recovered version-specific POM declaration."
-      }
+      "notices": []
     },
     {
       "coordinate": "org.checkerframework:checker-qual:3.43.0",
@@ -7283,45 +7237,35 @@
       ]
     },
     {
-      "coordinate": "org.jdom:jdom2:2.0.6",
+      "coordinate": "org.jdom:jdom2:2.0.6.1",
       "scopes": [
         "build:::classpath"
       ],
       "licenses": [
         {
-          "name": "JDOM License (BSD-style, naming restrictions)",
-          "url": "https://www.jdom.org/docs/faq.html"
+          "name": "Similar to Apache License but with the acknowledgment clause removed",
+          "url": "https://raw.github.com/hunterhacker/jdom/master/LICENSE.txt"
         }
       ],
       "evidence": [
         {
-          "coordinate": "org.jdom:jdom2:2.0.6",
-          "pomSha256": "47b23a79fe336b741b82434c6e049d68165256e405e75c10921fd72fa8a65d8d"
+          "coordinate": "org.jdom:jdom2:2.0.6.1",
+          "pomSha256": "55795e1018b8ae647b937967cf810a99b08582c2374e7873c128734c8c914bf3"
         }
       ],
       "artifacts": [
         {
-          "name": "jdom2-2.0.6.jar",
-          "sha256": "1345f11ba606d15603d6740551a8c21947c0215640770ec67271fe78bea97cf5"
+          "name": "jdom2-2.0.6.1.jar",
+          "sha256": "0b20f45e3a0fd8f0d12cdc5316b06776e902b1365db00118876f9175c60f302c"
         }
       ],
       "notices": [
         {
-          "artifact": "jdom2-2.0.6.jar",
+          "artifact": "jdom2-2.0.6.1.jar",
           "entry": "META-INF/LICENSE.txt",
           "file": "upstream-notices/9d3878b0a87ad1b2bafb729e8c9085b36b17bd0d30a813030113e13f99cced2c.txt"
         }
-      ],
-      "reviewedEvidence": {
-        "licenses": [
-          {
-            "name": "JDOM License (BSD-style, naming restrictions)",
-            "url": "https://www.jdom.org/docs/faq.html"
-          }
-        ],
-        "source": "jdom2-2.0.6.jar!/META-INF/LICENSE.txt",
-        "reason": "Exact distributed LICENSE.txt retained in upstream-notices; do not simplify to Apache-2.0."
-      }
+      ]
     },
     {
       "coordinate": "org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:2.4.10",

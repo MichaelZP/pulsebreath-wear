@@ -1,6 +1,6 @@
 # Third-party licenses and attribution
 
-Inventory snapshot: 2026-09-04, based on `e49fc59` plus the branding/license changes.
+Inventory snapshot: 2026-09-04, based on `3ed6247` plus the build-dependency security changes.
 Original PulseBreath code and new heart-and-lungs artwork: [Apache-2.0](LICENSE).
 Third-party terms are not replaced by that license. See [NOTICE](NOTICE).
 
@@ -11,11 +11,12 @@ Third-party terms are not replaced by that license. See [NOTICE](NOTICE).
   tests, annotation processors, Kotlin compiler and project/settings plugin classpaths.
 - [Machine-readable evidence](docs/licenses/dependencies.json): versions, exact scopes,
   cached POM hashes (including inherited licenses), artifact hashes and original legal-text paths.
-- [40 deduplicated upstream legal texts](docs/licenses/upstream-notices/), extracted from JAR/AAR
+- [41 deduplicated upstream legal texts](docs/licenses/upstream-notices/), extracted from JAR/AAR
   files and nested JARs. Original copyright statements and formatting are preserved.
-- [Reviewed exceptions](scripts/license-overrides.json): eight coordinates without POM license
-  declarations, resolved using exact artifact texts, upstream releases or publisher statements.
-  Bouncy Castle evidence is current project-wide publisher terms, not a recovered release POM.
+- [Reviewed exceptions](scripts/license-overrides.json): two active Foojay exceptions.
+  The parser now also reads POMs without XML namespaces, including Bouncy Castle and JDOM.
+  Earlier fallback entries are retained as historical evidence but are not applied when a
+  POM declaration is available. Exact upstream texts remain authoritative over short labels.
 - [APK runtime inventory](app/src/main/assets/open_source/dependencies.json): union of **119**
   demo/samsung debug/release Maven runtime coordinates. BOMs and metadata modules are included;
   this is a resolution inventory, **not** proof that every listed module is packaged byte-for-byte.
@@ -39,9 +40,10 @@ runner operating-system image are not Maven dependencies and are outside this in
 | JAXB and related components | EDL-1.0; some POMs also list Apache-2.0 | Build tools |
 | JNA | POM lists LGPL-2.1 and Apache-2.0; retain both declarations, do not infer a choice | Build tools |
 | juniversalchardet | MPL-1.1 declaration | Build tools |
-| SLF4J, checker-qual, jopt-simple, kXML | MIT/MIT-style terms, retaining upstream copyright | Build tools |
-| Bouncy Castle | Publisher's MIT-style Bouncy Castle License | Build tools |
-| JDOM 2.0.6 | Exact JDOM LICENSE.txt, including naming restrictions | Build tools |
+| SLF4J, checker-qual, jopt-simple | MIT/MIT-style terms, retaining upstream copyright | Build tools |
+| kXML 2.3.0 | POM declares BSD-style and Public Domain; the previously reviewed parser source header is MIT-style. Preserve component-specific terms, do not infer a single license | Build tools |
+| Bouncy Castle | Version-specific POM declares Bouncy Castle Licence; upstream texts retained | Build tools |
+| JDOM 2.0.6.1 | Exact JDOM LICENSE.txt, including naming restrictions; the POM's Apache comparison does not mean Apache-2.0 | Build tools |
 | Foojay toolchain resolver 1.0.0 | Apache-2.0 at the source tag | Settings/build tools |
 
 Multiple entries in a POM are recorded verbatim, not silently converted to an `AND`/`OR`
