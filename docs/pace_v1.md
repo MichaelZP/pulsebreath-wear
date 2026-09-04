@@ -3,8 +3,9 @@
 This pure Kotlin estimator suggests a breathing cue period from estimated IBI end
 times. It is not a respiration measurement or a validated resonance-frequency
 search. The session owner must collect 35 seconds before calling it; the helper
-does not run a timer. UI, live Samsung integration and lifecycle handling are a
-separate implementation step. No sensor, network, persistence or logging is added.
+does not run a timer. The Samsung shared owner now supplies that timer and maps the result to the cue;
+see [Samsung guided session](samsung-guided-session.md). The estimator itself adds
+no sensor, network, persistence or logging.
 
 ## Input and continuity
 
@@ -79,5 +80,6 @@ fallback, discontinuities, timing disorder, delivery gaps, nonperiodic noise and
 the rolling-window boundary. On 2026-09-04 compilation and all 67 demo unit tests
 passed (nine new pace tests). Lint completed with zero errors and two existing
 warnings (`ModifierParameter`, `WearRecents`). No APK assembly, emulator execution
-or watch measurement was performed. Hardware validation and a combined
-calibration/cue session remain pending.
+or watch measurement was performed at that checkpoint. The combined session is
+now implemented; see the integration document above for its verification.
+Hardware validation remains pending.

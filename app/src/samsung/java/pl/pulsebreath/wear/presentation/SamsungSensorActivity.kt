@@ -6,250 +6,161 @@ import android.health.connect.HealthPermissions
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import kotlinx.coroutines.delay
-import pl.pulsebreath.wear.sensor.TimingDiagnostics
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.wear.compose.material3.AppScaffold
-import androidx.wear.compose.material3.Button
-import androidx.wear.compose.material3.MaterialTheme
-import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.*
+import kotlinx.coroutines.delay
 import pl.pulsebreath.wear.presentation.theme.PulseBreathWearTheme
 import pl.pulsebreath.wear.sensor.SamsungSensorDataSource
-import pl.pulsebreath.wear.sensor.SensorSample
 import pl.pulsebreath.wear.sensor.SensorStreamState
-import pl.pulsebreath.wear.sensor.SensorStreamStatus
-import pl.pulsebreath.wear.signal.HrvAnalyzer
-import pl.pulsebreath.wear.signal.HrvMetrics
+import pl.pulsebreath.wear.sensor.TimingDiagnostics
+import pl.pulsebreath.wear.session.GuidedSessionCoordinator
+import pl.pulsebreath.wear.session.GuidedStage
 import java.util.Locale
 
 internal fun requiredHeartRatePermission(): String =
-    if (Build.VERSION.SDK_INT >= 36) {
-        HealthPermissions.READ_HEART_RATE
-    } else {
-        Manifest.permission.BODY_SENSORS
-    }
+    if (Build.VERSION.SDK_INT >= 36) HealthPermissions.READ_HEART_RATE else Manifest.permission.BODY_SENSORS
 
 class SamsungSensorActivity : ComponentActivity() {
-    private lateinit var sensorDataSource: SamsungSensorDataSource
+    private lateinit var session: GuidedSessionCoordinator
+    private var revision by mutableLongStateOf(0L)
     private var permissionGranted by mutableStateOf(false)
     private var permissionMessage by mutableStateOf<String?>(null)
-    private var streamStatus by mutableStateOf(
-        SensorStreamStatus(SensorStreamState.IDLE, "Sensor is stopped."),
-    )
-    private var latestSample by mutableStateOf<SensorSample?>(null)
-    private var latestValidIbiMillis by mutableStateOf<List<Long>>(emptyList())
-    private val sessionSamples = mutableStateListOf<SensorSample>()
-    private var timingDiagnostics by mutableStateOf(TimingDiagnostics())
-    private var sessionGeneration = 0L
-
     private val permissionRequest =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             permissionGranted = granted
-            permissionMessage = if (granted) {
-                "Permission granted. You can start the sensor."
-            } else {
-                "Permission denied. Real BPM and IBI cannot be measured."
-            }
+            permissionMessage = if (granted) "Permission granted." else "Heart-rate permission denied."
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        sensorDataSource = SamsungSensorDataSource(applicationContext)
-        permissionGranted =
-            checkSelfPermission(requiredHeartRatePermission()) == PackageManager.PERMISSION_GRANTED
-
-        setContent {
-            SamsungSensorApp(
-                permissionGranted = permissionGranted,
-                permissionMessage = permissionMessage,
-                status = streamStatus,
-                latestSample = latestSample,
-                latestValidIbiMillis = latestValidIbiMillis,
-                metrics = HrvAnalyzer.analyze(sessionSamples),
-                timingDiagnostics = timingDiagnostics,
-                onRequestPermission = {
-                    permissionRequest.launch(requiredHeartRatePermission())
-                },
-                onStart = ::startSensor,
-                onStop = ::stopSensor,
-            )
-        }
-    }
-
-    override fun onStop() {
-        stopSensor()
-        super.onStop()
-    }
-
-    override fun onDestroy() {
-        sensorDataSource.stop()
-        super.onDestroy()
-    }
-
-    private fun startSensor() {
-        if (!permissionGranted) {
-            permissionMessage = "Grant heart-rate access before starting."
-            return
-        }
-        latestSample = null
-        latestValidIbiMillis = emptyList()
-        sessionSamples.clear()
-        timingDiagnostics = TimingDiagnostics()
-        val generation = ++sessionGeneration
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        sensorDataSource.start(
-            onStatus = { status -> runOnUiThread {
-                if (generation == sessionGeneration) streamStatus = status
-            } },
-            onSample = { sample ->
-                runOnUiThread {
-                    if (generation != sessionGeneration) return@runOnUiThread
-                    timingDiagnostics = timingDiagnostics.add(sample)
-                    latestSample = sample
-                    sessionSamples.add(sample)
-                    val oldestAllowedMillis = sample.monotonicTimestampMillis - 60_000L
-                    sessionSamples.removeAll { observedSample ->
-                        observedSample.monotonicTimestampMillis < oldestAllowedMillis
-                    }
-                    if (sample.ibiMillis.isNotEmpty()) {
-                        latestValidIbiMillis = sample.ibiMillis
-                    }
-                }
+        session = GuidedSessionCoordinator(
+            sourceFactory = { SamsungSensorDataSource(applicationContext) },
+            clock = SystemClock::elapsedRealtime,
+            dispatch = { action -> runOnUiThread { action() } },
+            changed = {
+                revision++
+                if (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             },
         )
-    }
-
-    private fun stopSensor() {
-        sessionGeneration++
-        if (::sensorDataSource.isInitialized) {
-            sensorDataSource.stop()
-        }
-        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        streamStatus = SensorStreamStatus(SensorStreamState.IDLE, "Sensor is stopped.")
-    }
-}
-
-@Composable
-private fun SamsungSensorApp(
-    permissionGranted: Boolean,
-    permissionMessage: String?,
-    status: SensorStreamStatus,
-    latestSample: SensorSample?,
-    latestValidIbiMillis: List<Long>,
-    metrics: HrvMetrics,
-    timingDiagnostics: TimingDiagnostics,
-    onRequestPermission: () -> Unit,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-) {
-    PulseBreathWearTheme {
-        AppScaffold {
-            ScreenScaffold { contentPadding ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(contentPadding)
-                        .padding(horizontal = 28.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "SAMSUNG — REAL SENSOR",
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Text(
-                        text = "Heart-rate access is used only for the current local BPM/IBI measurement. This screen does not save or share readings.",
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    if (!permissionGranted) {
-                        Button(onClick = onRequestPermission) {
-                            Text("Allow heart rate")
+        permissionGranted = checkSelfPermission(requiredHeartRatePermission()) == PackageManager.PERMISSION_GRANTED
+        setContent {
+            // Observable revision publishes the serialized owner's current snapshot.
+            @Suppress("UNUSED_VARIABLE") val currentRevision = revision
+            LaunchedEffect(session.stage) {
+                while (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING) {
+                    session.tick()
+                    delay(50)
+                }
+            }
+            PulseBreathWearTheme {
+                AppScaffold {
+                    ScreenScaffold { contentPadding ->
+                        Column(
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                                .padding(contentPadding).padding(horizontal = 28.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text("SAMSUNG — REAL SENSOR", textAlign = TextAlign.Center)
+                            Text("Wellness only. Readings stay in memory for this session.", textAlign = TextAlign.Center)
+                            Text(session.stage.name)
+                            permissionMessage?.let { Text(it) }
+                            if (!permissionGranted) {
+                                Button(onClick = { permissionRequest.launch(requiredHeartRatePermission()) }) {
+                                    Text("Allow heart rate")
+                                }
+                            }
+                            when (session.stage) {
+                                GuidedStage.IDLE -> if (permissionGranted) {
+                                    Button(onClick = session::calibrate) { Text("Sense my pace") }
+                                }
+                                GuidedStage.CALIBRATING -> {
+                                    Text("Sensing for 35 seconds. Breathe naturally.", textAlign = TextAlign.Center)
+                                    Text(session.status.message, textAlign = TextAlign.Center)
+                                    Button(onClick = session::stop) { Text("Cancel") }
+                                }
+                                GuidedStage.READY -> {
+                                    Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
+                                    PaceDetails(session)
+                                    Button(onClick = session::start) { Text("Start breathing") }
+                                    Button(onClick = session::stop) { Text("Cancel") }
+                                }
+                                GuidedStage.RUNNING, GuidedStage.PAUSED -> {
+                                    Text(if (session.stage == GuidedStage.PAUSED) "Paused" else session.cue.phase.name)
+                                    Box(Modifier.size(100.dp), contentAlignment = Alignment.Center) {
+                                        Box(Modifier.size((30 + 70 * session.cue.breathExpansionFraction).dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape))
+                                    }
+                                    Text("${session.cue.remainingMillis / 1000} s left")
+                                    Text(session.status.message, textAlign = TextAlign.Center)
+                                    Button(onClick = {
+                                        if (session.stage == GuidedStage.RUNNING) session.pause() else session.start()
+                                    }) { Text(if (session.stage == GuidedStage.RUNNING) "Pause" else "Resume") }
+                                    Button(onClick = session::stop) { Text("Stop") }
+                                }
+                                GuidedStage.SUMMARY -> {
+                                    Text("Session summary")
+                                    Text("Mean BPM: ${session.meanBpm?.let { String.format(Locale.US, "%.1f", it) } ?: "unavailable"}")
+                                    PaceDetails(session)
+                                    if (permissionGranted) Button(onClick = session::calibrate) { Text("New session") }
+                                }
+                            }
+                            Text("Alignment: ${session.alignment.availability}", textAlign = TextAlign.Center)
+                            Text("Score: ${session.alignment.score?.let { String.format(Locale.US, "%.2f", it) } ?: "unavailable"}")
+                            if (session.stage == GuidedStage.CALIBRATING || session.stage == GuidedStage.RUNNING) {
+                                Text("BPM: ${session.latestSample?.beatsPerMinute?.toInt() ?: "—"}")
+                                Text("Live IBI: ${session.latestSample?.ibiMillis?.lastOrNull() ?: "—"} ms")
+                            }
+                            Text("HRV: ${session.hrv.quality}; coverage ${session.hrv.ibiEventCoveragePercent.toInt()}%", textAlign = TextAlign.Center)
+                            Text("RMSSD: ${session.hrv.displayRmssdMillis?.let { String.format(Locale.US, "%.1f ms", it) } ?: "unavailable"}")
+                            Text("Experimental receipt-anchored timing; live alignment is unvalidated.", textAlign = TextAlign.Center)
+                            TimingDiagnosticsPanel(session.timing,
+                                if (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING)
+                                    session.status.state else SensorStreamState.IDLE)
                         }
                     }
-                    permissionMessage?.let {
-                        Text(it, textAlign = TextAlign.Center)
-                    }
-                    Text(status.message, textAlign = TextAlign.Center)
-                    latestSample?.let { sample ->
-                        Text(
-                            text = "BPM: ${sample.beatsPerMinute?.toInt() ?: "—"}",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            text = if (latestValidIbiMillis.isEmpty()) {
-                                "Last valid IBI: waiting"
-                            } else {
-                                "Last valid IBI: ${latestValidIbiMillis.joinToString()} ms"
-                            },
-                            textAlign = TextAlign.Center,
-                        )
-                        Text("Signal: ${sample.quality.name}")
-                    }
-                    Text(
-                        text = "HRV window: ${metrics.quality.name}",
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = "IBI coverage: ${metrics.ibiEventCoveragePercent.toInt()}%",
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = "Valid IBI: ${metrics.validIbiCount}",
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = metrics.displayRmssdMillis?.let {
-                            String.format(Locale.US, "RMSSD: %.1f ms", it)
-                        }
-                            ?: "RMSSD: unavailable (quality or continuity)",
-                        textAlign = TextAlign.Center,
-                    )
-                    Text("Rejected IBI entries: ${metrics.rejectedIbiCount}")
-                    if (status.state == SensorStreamState.CONNECTING ||
-                        status.state == SensorStreamState.TRACKING
-                    ) {
-                        Button(onClick = onStop) {
-                            Text("Stop sensor")
-                        }
-                    } else if (permissionGranted) {
-                        Button(onClick = onStart) {
-                            Text("Start sensor")
-                        }
-                    }
-                    TimingDiagnosticsPanel(timingDiagnostics, status.state)
                 }
             }
         }
     }
+
+    override fun onStop() {
+        session.stop()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        session.stop()
+        super.onDestroy()
+    }
+}
+
+@Composable
+private fun PaceDetails(session: GuidedSessionCoordinator) {
+    session.estimate?.let {
+        Text("usedFallback: ${it.usedFallback}")
+        Text("Fallback reason: ${it.fallbackReason?.name ?: "none"}", textAlign = TextAlign.Center)
+    } ?: Text("Calibration cancelled; no pace estimate.")
 }
 
 @Composable
 private fun TimingDiagnosticsPanel(summary: TimingDiagnostics, state: SensorStreamState) {
-    var now by remember { mutableStateOf(SystemClock.elapsedRealtime()) }
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     val running = state == SensorStreamState.TRACKING || state == SensorStreamState.CONNECTING
     LaunchedEffect(running, summary) {
         now = SystemClock.elapsedRealtime()
