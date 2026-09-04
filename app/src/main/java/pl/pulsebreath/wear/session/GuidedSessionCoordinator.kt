@@ -98,6 +98,13 @@ internal class GuidedSessionCoordinator(
         subscribe()
     }
 
+    /** READY-only selection: pace timings stay fixed while the run length is chosen. */
+    fun setSessionDuration(durationMillis: Long) {
+        if (stage != GuidedStage.READY || estimate?.usedFallback == true) return
+        config = config.copy(sessionDurationMillis = durationMillis)
+        changed()
+    }
+
     fun pause() {
         if (stage != GuidedStage.RUNNING) return
         tick()

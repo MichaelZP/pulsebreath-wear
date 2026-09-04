@@ -93,6 +93,19 @@ class GuidedSessionCoordinatorTest {
         assertFalse(h.owner.estimate!!.usedFallback)
         assertTrue(h.owner.estimate!!.acceptedIbiCount >= 12)
     }
+    @Test fun readySessionDurationCanChangeButIsFixedAfterStart() {
+        val h = Harness()
+        h.owner.calibrate()
+        h.emitSuccessfulCalibrationAttempt()
+        h.now = 35_000L
+        h.owner.tick()
+        assertEquals(GuidedStage.READY, h.owner.stage)
+        h.owner.setSessionDuration(300_000)
+        assertEquals(300_000, h.owner.config.sessionDurationMillis)
+        h.owner.start()
+        h.owner.setSessionDuration(600_000)
+        assertEquals(300_000, h.owner.config.sessionDurationMillis)
+    }
     @Test fun noDataCalibrationRetriesExactlyTenTimesThenStops() {
         val h = Harness()
         assertEquals(GuidedStage.IDLE, h.owner.stage)

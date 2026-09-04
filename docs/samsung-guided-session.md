@@ -89,3 +89,10 @@ and are excluded from this focused commit.
 The guided Wear session signals READY with one 55 ms pulse. Each RUNNING phase edge
 uses 25 ms + 25 ms with a 45 ms gap for inhale, and one 85 ms pulse for exhale.
 Calibration retries are silent. Haptics are edge-gated and cancelled on stop/cancel.
+
+# Session duration
+
+READY offers 120 seconds (default), 5, 10, 15, or 30 minutes. The selected total
+duration is copied into `BreathingSessionConfig` before Start; its calibrated inhale
+and exhale durations are unchanged. The selection is locked for the running session
+and shown in its summary.

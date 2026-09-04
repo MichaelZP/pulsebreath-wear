@@ -119,6 +119,15 @@ class SamsungSensorActivity : ComponentActivity() {
                                         Button(onClick = session::stop) { Text("Cancel") }
                                     } else {
                                         Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
+                                        Text("Session length", textAlign = TextAlign.Center)
+                                        listOf(120L, 300L, 600L, 900L, 1_800L).forEach { seconds ->
+                                            val selected = session.config.sessionDurationMillis == seconds * 1_000L
+                                            Button(onClick = { session.setSessionDuration(seconds * 1_000L) },
+                                                enabled = !selected) {
+                                                Text(if (seconds == 120L) "120 seconds" else "${seconds / 60} minutes")
+                                            }
+                                        }
+                                        Text("Selected: ${formatDuration(session.config.sessionDurationMillis)}", textAlign = TextAlign.Center)
                                         Button(onClick = session::start) { Text("Start breathing") }
                                         Button(onClick = session::stop) { Text("Cancel") }
                                     }
@@ -138,6 +147,7 @@ class SamsungSensorActivity : ComponentActivity() {
                                 }
                                 GuidedStage.SUMMARY -> {
                                     Text("Session summary")
+                                    Text("Selected duration: ${formatDuration(session.config.sessionDurationMillis)}", textAlign = TextAlign.Center)
                                     Text("Mean BPM: ${session.meanBpm?.let { String.format(Locale.US, "%.1f", it) } ?: "unavailable"}")
                                     PaceDetails(session)
                                     if (permissionGranted) Button(onClick = session::calibrate) { Text("New session") }
@@ -171,6 +181,11 @@ class SamsungSensorActivity : ComponentActivity() {
         session.stop()
         super.onDestroy()
     }
+}
+
+private fun formatDuration(millis: Long): String {
+    val seconds = millis / 1_000L
+    return if (seconds < 300L) "$seconds seconds" else "${seconds / 60} minutes"
 }
 
 @Composable
