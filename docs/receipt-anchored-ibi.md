@@ -44,10 +44,10 @@ dropping empty/rejected events would artificially improve the existing event
 coverage metric. Do not feed only accepted unwrapped entries into that gate and
 claim its original semantics survived. Keep raw-event quality evaluation separate.
 
-Next: define and test the attachment's experimental `pace_v1` estimator, including
-its detrending, uneven-sample handling, lag grid, minimum window/segments, peak
-criterion and fallback. No resampling or correlation threshold is selected here.
-Then connect one session owner and explicitly label receipt-based alignment as
+The experimental `pace_v1` estimator and its tests are now implemented; see
+[pace_v1](pace_v1.md) for detrending, irregular-time lag bins, segment gates,
+peak criteria and fallback. This helper itself selects no pace thresholds.
+Next connect one session owner and explicitly label receipt-based alignment as
 estimated, not a measurement of chest respiration or personal resonance. This
 does not implement continuous physiological adaptation or validate a 35-second
 personal calibration. No new human measurement is performed in this slice.
