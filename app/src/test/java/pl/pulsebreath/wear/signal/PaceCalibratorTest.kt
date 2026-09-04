@@ -28,6 +28,7 @@ class PaceCalibratorTest {
             assertEquals(estimate.cycleMillis, estimate.inhaleMillis + estimate.exhaleMillis)
             assertEquals((estimate.cycleMillis * 0.45).roundToLong(), estimate.inhaleMillis)
             assertNull(estimate.fallbackReason)
+            assertEquals(PaceEstimateMode.CONTINUOUS, estimate.estimateMode)
         }
     }
 
@@ -50,30 +51,34 @@ class PaceCalibratorTest {
         }
     }
 
-    @Test fun rejectionUnknownTimeAndExplicitBreakNeverGlueShortSegments() {
-        val input = oscillation()
-        val middle = input.size / 2
-        for (replacement in listOf(input[middle].copy(accepted = false),
-            input[middle].copy(endMillis = null), input[middle].copy(breakBefore = true))) {
-            val broken = input.toMutableList().also { it[middle] = replacement }
-            assertEquals(PaceFallbackReason.SHORT_CONTINUOUS_SEGMENT,
-                PaceCalibrator.estimate(broken).fallbackReason)
+    @Test fun pooledPathUsesAcceptedPlacedPointsAcrossExplicitBreaks() {
+        val broken = oscillation().mapIndexed { index, beat ->
+            beat.copy(breakBefore = index > 0 && index % 4 == 0)
         }
+        val estimate = PaceCalibrator.estimate(broken)
+        assertFalse(estimate.toString(), estimate.usedFallback)
+        assertEquals(PaceEstimateMode.POOLED, estimate.estimateMode)
+        assertTrue(estimate.analyzedIbiCount >= 12)
     }
 
-    @Test fun duplicateOrReversedTimesFailClosed() {
+    @Test fun timeOrderGlitchesBreakSegmentsWithoutRejectingWholeEstimate() {
         val input = oscillation()
-        assertEquals(PaceFallbackReason.INVALID_TIME_ORDER,
-            PaceCalibrator.estimate(input.reversed()).fallbackReason)
-        assertEquals(PaceFallbackReason.INVALID_TIME_ORDER,
-            PaceCalibrator.estimate(listOf(input.first()) + input).fallbackReason)
+        val duplicate = PaceCalibrator.estimate(listOf(input.first()) + input)
+        assertNotEquals(PaceFallbackReason.INVALID_TIME_ORDER, duplicate.fallbackReason)
+        assertFalse(duplicate.toString(), duplicate.usedFallback)
+        assertEquals(PaceEstimateMode.CONTINUOUS, duplicate.estimateMode)
+        val reversed = PaceCalibrator.estimate(input.reversed())
+        assertTrue(reversed.usedFallback)
+        assertNotEquals(PaceFallbackReason.INVALID_TIME_ORDER, reversed.fallbackReason)
     }
 
     @Test fun unexplainedDeliveryGapSplitsTheSegment() {
         val input = oscillation().mapIndexed { index, beat ->
             if (index > 20) beat.copy(endMillis = beat.endMillis!! + 2_000) else beat
         }
-        assertTrue(PaceCalibrator.estimate(input).usedFallback)
+        val estimate = PaceCalibrator.estimate(input)
+        assertFalse(estimate.toString(), estimate.usedFallback)
+        assertEquals(PaceEstimateMode.POOLED, estimate.estimateMode)
     }
 
     @Test fun nonperiodicNoiseFallsBack() {
@@ -103,5 +108,11 @@ class PaceCalibratorTest {
     @Test fun enoughIntervalsButTooLittleTimeStillFallsBack() {
         val estimate = PaceCalibrator.estimate(oscillation().take(15))
         assertEquals(PaceFallbackReason.SHORT_CONTINUOUS_SEGMENT, estimate.fallbackReason)
+    }
+
+    @Test fun fewerThanTwelveEligibleIntervalsStillFallsBack() {
+        val estimate = PaceCalibrator.estimate(oscillation().take(11))
+        assertEquals(PaceFallbackReason.TOO_FEW_INTERVALS, estimate.fallbackReason)
+        assertEquals(PaceEstimateMode.FALLBACK, estimate.estimateMode)
     }
 }

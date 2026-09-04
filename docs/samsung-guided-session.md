@@ -1,4 +1,4 @@
-# Samsung shared guided session (pace_v1 integration)
+# Samsung shared guided session (pace_v1.1 integration)
 
 The Samsung screen owns one `GuidedSessionCoordinator`; the coordinator owns the
 cue state, phase history, and one streaming sensor subscription. MainActivity
@@ -15,7 +15,7 @@ fallback reason. A non-fallback estimate exits immediately to READY. After ten
 fallbacks, READY clearly reports insufficient signal coverage and offers a manual
 retry or cancellation; it never loops indefinitely. `PaceCalibrator.estimate` sets
 inhale/exhale durations exactly once per attempt. Connection failure is shown;
-absent/insufficient IBI still reaches the ordinary pace_v1 fallback. No trial
+absent/insufficient IBI still reaches the ordinary pace_v1.1 fallback. No trial
 search, rate updates, or lower quality threshold occurs. The guided run lasts
 120,000 active milliseconds; pause excludes time.
 

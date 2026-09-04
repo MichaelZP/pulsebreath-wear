@@ -1,4 +1,4 @@
-# pace_v1: experimental IBI periodicity estimate
+# pace_v1.1: experimental receipt-anchored IBI periodicity estimate
 
 This pure Kotlin estimator suggests a breathing cue period from estimated IBI end
 times. It is not a respiration measurement or a validated resonance-frequency
@@ -12,9 +12,10 @@ no sensor, network, persistence or logging.
 Input is ordered `TimedIbi` records, with milliseconds on one monotonic session
 clock. Only the final 35,000 ms relative to the latest placed input are eligible.
 `acceptedIbiCount` counts positive accepted, placed intervals in that window;
-`analyzedIbiCount` reports the selected continuous segment. Unplaced, rejected and
-nonpositive entries split segments, as do `breakBefore` markers. Non-increasing
-or negative placed timestamps reject the estimate rather than being sorted.
+`analyzedIbiCount` reports the records used by the selected mode. Unplaced,
+rejected and nonpositive entries split continuous segments, as do `breakBefore`
+markers. Non-increasing or negative placed timestamps also split continuous
+segments; they are never sorted, repaired, or used to invent a beat timeline.
 
 An end-to-end time difference that differs from the later IBI by more than 250 ms
 also splits the segment. This is an explicit conservative delivery-jitter heuristic,
@@ -23,15 +24,23 @@ carry trailing/empty-event break metadata into the next batch (or a rejected mar
 simply concatenating `EstimatedIbiBatch.intervals` loses that information. Null
 timestamps must remain in the input as break markers. No IBI is invented.
 
-At least 12 eligible intervals are required. Select the longest segment containing
-at least 12 intervals (first on a tie), requiring at least 24 seconds between its
-first and last end. Other segments are not combined. These gates deliberately
-allow fallback even when the total count is high.
+At least 12 eligible intervals are required in every mode. `CONTINUOUS` is always
+preferred: select the longest continuous segment containing at least 12 intervals
+(first on a tie), requiring at least 24 seconds between its first and last end.
+The existing timing-gap heuristic remains a continuous-segment split.
+
+If the continuous path cannot produce an estimate, `POOLED` may use all accepted,
+placed records in their original delivery order across breaks. It still requires
+at least 12 records and a raw last-minus-first span of at least 20 seconds. It does
+not sort, interpolate, fill gaps, claim continuity, or relax raw-sample quality.
+`estimateMode` reports `CONTINUOUS`, `POOLED`, or `FALLBACK`. Pooled evidence is a
+receipt-anchored heuristic for intermittent wrist delivery, not proof of measured
+beat timing or respiration.
 
 ## Detrending and irregular-time autocorrelation
 
-For the selected segment, let t be milliseconds relative to its first end and y
-be IBI milliseconds. Least-squares linear detrending uses
+For the records selected by either mode, let t be milliseconds relative to the
+first delivered end and y be IBI milliseconds. Least-squares linear detrending uses
 `b = sum((t-mean(t))*(y-mean(y))) / sum((t-mean(t))^2)` and residual
 `r = y-mean(y)-b*(t-mean(t))`. Mean squared residual below 1 ms^2 yields fallback.
 The original records are unchanged; no resampling, interpolation or filtering
@@ -58,8 +67,10 @@ period itself. This is a one-shot pace estimate, not continuous adaptation.
 ## Explicit fallback and integration
 
 Fallback always returns cycle 10,000 ms, inhale 4,500 ms, exhale 5,500 ms and
-`usedFallback=true`. Reasons distinguish too few intervals, a short continuous
-segment, invalid time ordering and no clear peak. `peakCorrelation` is nullable;
+`usedFallback=true`. Reasons distinguish too few intervals, insufficient usable
+time/continuous data, and no clear peak. Non-increasing receipt ends no longer
+cause a whole-window `INVALID_TIME_ORDER` fallback; they are explicit segment
+breaks. `peakCorrelation` is nullable;
 it contains the candidate local peak when one exists, even if rejected as weak.
 
 The caller must display fallback honestly and map the durations into
@@ -77,11 +88,8 @@ not establish live breathing accuracy.
 .\gradlew.bat :app:testDemoDebugUnitTest :app:lintDemoDebug --offline
 ```
 
-Tests cover a synthetic 10-second oscillation with linear drift, output clamping,
-fallback, discontinuities, timing disorder, delivery gaps, nonperiodic noise and
-the rolling-window boundary. On 2026-09-04 compilation and all 67 demo unit tests
-passed (nine new pace tests). Lint completed with zero errors and two existing
-warnings (`ModifierParameter`, `WearRecents`). No APK assembly, emulator execution
-or watch measurement was performed at that checkpoint. The combined session is
-now implemented; see the integration document above for its verification.
-Hardware validation remains pending.
+Tests cover continuous 10-second recovery with linear drift, output clamping,
+the >=12 gate, pooled recovery across explicit breaks and delivery gaps, time-order
+glitches without sorting, nonperiodic noise and the rolling-window boundary.
+Pooled mode keeps the same ACF peak thresholds as continuous mode. Unit tests do
+not establish live Samsung accuracy; physical-watch validation remains required.
