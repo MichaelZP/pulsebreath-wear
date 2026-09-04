@@ -1,0 +1,30 @@
+name: Demo checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: 'platform-tools platforms;android-37 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
+      - name: Check proprietary SDK is absent
+        run: test ! -e app/libs/samsung-health-sensor-api-1.4.1.aar
+      - name: Test, lint and build demo
+        run: bash ./gradlew --no-daemon testDemoDebugUnitTest lintDemoDebug assembleDemoDebug

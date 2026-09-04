@@ -194,9 +194,10 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 
 ## Immediate next actions
 
-1. Review the validation protocol and its data-minimization boundary.
-2. Repeat the already authorized self-test after verifying and installing the continuity correction.
-3. Pause for privacy and ethics review before involving another participant.
+1. Review the completed local Milestone 8 preparation and verification in `docs/milestone-8.md`.
+2. Review `docs/release-checklist.md`; publication and distribution remain separate approval gates.
+3. Request acceptance of the exact local commit before committing. Do not publish automatically.
+4. Keep accuracy validation open; pause for privacy and ethics review before involving another participant.
 
 ## Official references
 

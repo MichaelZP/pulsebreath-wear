@@ -18,3 +18,10 @@ local.properties
 *.jks
 *.keystore
 /app/libs/samsung-health-sensor-api-1.4.1.aar
+.env
+.env.*
+*.p12
+*.pfx
+*.apk
+*.aab
+/private-data/
