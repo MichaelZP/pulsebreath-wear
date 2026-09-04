@@ -131,10 +131,11 @@ class GuidedSessionCoordinatorTest {
         }
         h.now = 35_000
         h.owner.tick()
-        assertEquals(PaceCalibrator.estimate(beats).fallbackReason, h.owner.estimate!!.fallbackReason)
+        assertFalse(h.owner.estimate!!.usedFallback)
+        assertEquals(PaceEstimateMode.DEFAULT_NO_PEAK, h.owner.estimate!!.estimateMode)
         assertEquals(h.owner.estimate!!.inhaleMillis, h.owner.config.inhaleDurationMillis)
-        assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
-        assertEquals(2, h.owner.calibrationAttempt)
+        assertEquals(GuidedStage.READY, h.owner.stage)
+        assertEquals(1, h.owner.calibrationAttempt)
     }
 
     @Test fun batchUsesIndividualHistoricalPhasesAndUnchangedPearson() {

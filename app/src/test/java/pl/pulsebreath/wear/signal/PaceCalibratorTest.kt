@@ -29,6 +29,7 @@ class PaceCalibratorTest {
             assertEquals((estimate.cycleMillis * 0.45).roundToLong(), estimate.inhaleMillis)
             assertNull(estimate.fallbackReason)
             assertEquals(PaceEstimateMode.CONTINUOUS, estimate.estimateMode)
+            assertEquals(PaceEstimateConfidence.HIGH, estimate.confidence)
         }
     }
 
@@ -40,15 +41,19 @@ class PaceCalibratorTest {
         }
     }
 
-    @Test fun insufficientAndFlatDataUseExplicitDefaults() {
+    @Test fun insufficientDataUsesAnExplicitFallbackButFlatDataStartsWithTheDefaultCue() {
         val flat = (1..43).map { TimedIbi(it * 800L, 800, true, it, false) }
-        for (input in listOf(emptyList(), oscillation().take(11), flat)) {
+        for (input in listOf(emptyList(), oscillation().take(11))) {
             val estimate = PaceCalibrator.estimate(input)
             assertTrue(estimate.usedFallback)
             assertEquals(4_500L, estimate.inhaleMillis)
             assertEquals(5_500L, estimate.exhaleMillis)
             assertNotNull(estimate.fallbackReason)
         }
+        val estimate = PaceCalibrator.estimate(flat)
+        assertFalse(estimate.usedFallback)
+        assertEquals(PaceEstimateMode.DEFAULT_NO_PEAK, estimate.estimateMode)
+        assertEquals(PaceEstimateConfidence.DEFAULT, estimate.confidence)
     }
 
     @Test fun pooledPathUsesAcceptedPlacedPointsAcrossExplicitBreaks() {
@@ -81,7 +86,7 @@ class PaceCalibratorTest {
         assertEquals(PaceEstimateMode.POOLED, estimate.estimateMode)
     }
 
-    @Test fun nonperiodicNoiseFallsBack() {
+    @Test fun nonperiodicNoiseNeverClaimsHighConfidence() {
         val random = Random(71)
         var t = 0L
         val input = (0..40).map { index ->
@@ -89,7 +94,9 @@ class PaceCalibratorTest {
             t += ibi
             TimedIbi(t, ibi, true, index, false)
         }
-        assertEquals(PaceFallbackReason.NO_CLEAR_PEAK, PaceCalibrator.estimate(input).fallbackReason)
+        val estimate = PaceCalibrator.estimate(input)
+        assertFalse(estimate.usedFallback)
+        assertNotEquals(PaceEstimateConfidence.HIGH, estimate.confidence)
     }
 
     @Test fun oldValidOscillationCannotRescueRecentFlatData() {
@@ -100,19 +107,39 @@ class PaceCalibratorTest {
             TimedIbi(t, 800, true, index, false)
         }
         val estimate = PaceCalibrator.estimate(old + recent)
-        assertTrue(estimate.usedFallback)
+        assertFalse(estimate.usedFallback)
         assertEquals(44, estimate.acceptedIbiCount)
         assertEquals(44, estimate.analyzedIbiCount)
+        assertEquals(PaceEstimateMode.DEFAULT_NO_PEAK, estimate.estimateMode)
     }
 
-    @Test fun enoughIntervalsButTooLittleTimeStillFallsBack() {
+    @Test fun enoughIntervalsButTooLittleTimeUseTheDefaultCue() {
         val estimate = PaceCalibrator.estimate(oscillation().take(15))
-        assertEquals(PaceFallbackReason.SHORT_CONTINUOUS_SEGMENT, estimate.fallbackReason)
+        assertFalse(estimate.usedFallback)
+        assertEquals(PaceEstimateMode.DEFAULT_NO_PEAK, estimate.estimateMode)
     }
 
     @Test fun fewerThanTwelveEligibleIntervalsStillFallsBack() {
         val estimate = PaceCalibrator.estimate(oscillation().take(11))
         assertEquals(PaceFallbackReason.TOO_FEW_INTERVALS, estimate.fallbackReason)
         assertEquals(PaceEstimateMode.FALLBACK, estimate.estimateMode)
+        assertEquals(PaceEstimateConfidence.NONE, estimate.confidence)
+    }
+
+    @Test fun moderatePeriodicEvidenceUsesAWeakPeak() {
+        val random = Random(38)
+        val beats = mutableListOf<TimedIbi>()
+        var time = 0L
+        while (time < 35_000) {
+            val ibi = (800 + 32 * sin(2 * PI * time / 10_000) + random.nextInt(-45, 46)).roundToLong()
+            time += ibi
+            if (time <= 35_000) beats.add(TimedIbi(time, ibi, true, beats.size, false))
+        }
+        val estimate = PaceCalibrator.estimate(beats)
+        assertFalse(estimate.toString(), estimate.usedFallback)
+        assertEquals(PaceEstimateMode.CONTINUOUS, estimate.estimateMode)
+        assertEquals(PaceEstimateConfidence.WEAK, estimate.confidence)
+        assertNotNull(estimate.peakCorrelation)
+        assertTrue(estimate.peakCorrelation!! >= 0.35)
     }
 }

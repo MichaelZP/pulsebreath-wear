@@ -1,4 +1,4 @@
-# pace_v1.1: experimental receipt-anchored IBI periodicity estimate
+# pace_v1.2: experimental receipt-anchored IBI periodicity estimate
 
 This pure Kotlin estimator suggests a breathing cue period from estimated IBI end
 times. It is not a respiration measurement or a validated resonance-frequency
@@ -18,7 +18,7 @@ markers. Non-increasing or negative placed timestamps also split continuous
 segments; they are never sorted, repaired, or used to invent a beat timeline.
 
 For Samsung, `SamsungHeartRateReadingMapper` places only positive
-`IBI_STATUS_NORMAL` values into `SensorSample.ibiMillis`. pace_v1.1 accepts such
+`IBI_STATUS_NORMAL` values into `SensorSample.ibiMillis`. pace_v1.2 accepts such
 already-mapped intervals for receipt placement even when the accompanying BPM
 quality status is not `GOOD`. BPM-only callbacks do not create a pace break.
 Explicit IBI reject/break metadata still creates a break. This is pace-only
@@ -41,7 +41,8 @@ If the continuous path cannot produce an estimate, `POOLED` may use all accepted
 placed records in their original delivery order across breaks. It still requires
 at least 12 records and a raw last-minus-first span of at least 20 seconds. It does
 not sort, interpolate, fill gaps, claim continuity, or relax raw-sample quality.
-`estimateMode` reports `CONTINUOUS`, `POOLED`, or `FALLBACK`. Pooled evidence is a
+`estimateMode` reports `CONTINUOUS`, `POOLED`, `DEFAULT_NO_PEAK`, or `FALLBACK`.
+Pooled evidence is a
 receipt-anchored heuristic for intermittent wrist delivery, not proof of measured
 beat timing or respiration.
 
@@ -62,7 +63,11 @@ Variance sums <= 1e-9 or nonfinite results make that bin unavailable.
 
 Choose the strongest interior local maximum with available neighbors (>= left,
 > right; first on a tie). Require correlation >=0.6 and a difference of >=0.3
-from the minimum available lag correlation. A boundary-only peak is unavailable.
+from the minimum available lag correlation. That is a `HIGH` confidence peak. A
+boundary-only peak is unavailable for this path. If no high peak exists, consider
+all available bins from 8,000 through 14,000 ms: the greatest correlation >=0.35
+becomes a `WEAK` peak. The weak path has the same real-pair, span and count rules;
+it does not create samples, lower the 12-IBI gate, or establish respiration.
 These bin widths, counts and thresholds are engineering heuristics, not clinically
 validated cutoffs. A pair may contribute to neighboring lag bins, so bins are not
 independent evidence. Harmonics, noise and delivery jitter can bias the result.
@@ -72,14 +77,20 @@ exhale is the remainder, preserving the 45:55 default ratio and exact cycle sum.
 An estimate outside the output range is clamped, not reported as the detected
 period itself. This is a one-shot pace estimate, not continuous adaptation.
 
-## Explicit fallback and integration
+## Explicit default, fallback and integration
 
-Fallback always returns cycle 10,000 ms, inhale 4,500 ms, exhale 5,500 ms and
-`usedFallback=true`. Reasons distinguish too few intervals, insufficient usable
-time/continuous data, and no clear peak. Non-increasing receipt ends no longer
-cause a whole-window `INVALID_TIME_ORDER` fallback; they are explicit segment
-breaks. `peakCorrelation` is nullable;
-it contains the candidate local peak when one exists, even if rejected as weak.
+When at least 12 eligible, accepted and placed intervals complete calibration but
+neither peak path is usable, `DEFAULT_NO_PEAK` returns the explicit 10,000 ms cue
+(4,500 ms inhale / 5,500 ms exhale), `usedFallback=false`, and confidence
+`DEFAULT`. It means "no RSA period found; use default cue", not personalized pace
+and not a silent success. A `WEAK` peak also has `usedFallback=false`; both modes
+proceed to READY and permit Start without another automatic attempt.
+
+Fallback returns the same durations with `usedFallback=true` only for insufficient
+or hard-invalid input, including fewer than 12 eligible intervals. Non-increasing
+receipt ends no longer cause a whole-window `INVALID_TIME_ORDER` fallback; they
+are explicit segment breaks. `peakCorrelation` is nullable; when present it is the
+selected high or weak peak correlation.
 
 The caller must display fallback honestly and map the durations into
 `BreathingSessionConfig` only after calibration. Existing `quality_v1.1` and
@@ -96,8 +107,8 @@ not establish live breathing accuracy.
 .\gradlew.bat :app:testDemoDebugUnitTest :app:lintDemoDebug --offline
 ```
 
-Tests cover continuous 10-second recovery with linear drift, output clamping,
-the >=12 gate, pooled recovery across explicit breaks and delivery gaps, time-order
-glitches without sorting, nonperiodic noise and the rolling-window boundary.
-Pooled mode keeps the same ACF peak thresholds as continuous mode. Unit tests do
-not establish live Samsung accuracy; physical-watch validation remains required.
+Tests cover continuous high-confidence recovery with linear drift, weak peaks,
+the explicit no-peak default, the >=12 gate, pooled recovery across explicit breaks
+and delivery gaps, time-order glitches without sorting, nonperiodic noise and the
+rolling-window boundary. Unit tests do not establish live Samsung accuracy;
+physical-watch validation remains required.

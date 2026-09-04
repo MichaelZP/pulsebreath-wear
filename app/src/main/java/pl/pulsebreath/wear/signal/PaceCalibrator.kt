@@ -8,7 +8,9 @@ internal enum class PaceFallbackReason {
     TOO_FEW_INTERVALS, SHORT_CONTINUOUS_SEGMENT, INVALID_TIME_ORDER, NO_CLEAR_PEAK,
 }
 
-internal enum class PaceEstimateMode { CONTINUOUS, POOLED, FALLBACK }
+internal enum class PaceEstimateMode { CONTINUOUS, POOLED, DEFAULT_NO_PEAK, FALLBACK }
+
+internal enum class PaceEstimateConfidence { HIGH, WEAK, DEFAULT, NONE }
 
 internal data class PaceEstimate(
     val cycleMillis: Long,
@@ -20,9 +22,10 @@ internal data class PaceEstimate(
     val fallbackReason: PaceFallbackReason?,
     val analyzedIbiCount: Int,
     val estimateMode: PaceEstimateMode,
+    val confidence: PaceEstimateConfidence,
 )
 
-/** Experimental pace_v1.1; estimates IBI periodicity, not measured respiration. */
+/** Experimental pace_v1.2; estimates IBI periodicity, not measured respiration. */
 internal object PaceCalibrator {
     const val CALIBRATION_DURATION_MILLIS = 35_000L
 
@@ -34,7 +37,7 @@ internal object PaceCalibrator {
         }
         fun fallback(reason: PaceFallbackReason, analyzed: Int = 0, peak: Double? = null) =
             PaceEstimate(10_000, 4_500, 5_500, true, acceptedCount, peak, reason, analyzed,
-                PaceEstimateMode.FALLBACK)
+                PaceEstimateMode.FALLBACK, PaceEstimateConfidence.NONE)
 
         // Preserve input order and every explicit break. Never sort or invent a beat.
         val segments = mutableListOf<MutableList<TimedIbi>>()
@@ -62,8 +65,9 @@ internal object PaceCalibrator {
             .maxByOrNull { it.last().endMillis!! - it.first().endMillis!! }
         val continuous = segment?.takeIf { it.last().endMillis!! - it.first().endMillis!! >= 24_000 }
         val continuousResult = analyze(continuous)
-        continuousResult?.takeIf { it.cycleMillis != null }?.let { result ->
-            return success(result, acceptedCount, requireNotNull(continuous).size, PaceEstimateMode.CONTINUOUS)
+        continuousResult?.strong?.let { result ->
+            return success(result, acceptedCount, requireNotNull(continuous).size,
+                PaceEstimateMode.CONTINUOUS, PaceEstimateConfidence.HIGH)
         }
 
         // The pooled path keeps original receipt order and permits explicit discontinuities.
@@ -74,21 +78,34 @@ internal object PaceCalibrator {
         val pooledSpan = if (pooled.isEmpty()) 0L else pooled.last().endMillis!! - pooled.first().endMillis!!
         val pooledResult = if (pooled.size >= 12 && pooledSpan >= 20_000) analyze(pooled) else null
         if (pooled.size >= 12 && pooledSpan >= 20_000) {
-            pooledResult?.takeIf { it.cycleMillis != null }?.let { result ->
-                return success(result, acceptedCount, pooled.size, PaceEstimateMode.POOLED)
+            pooledResult?.strong?.let { result ->
+                return success(result, acceptedCount, pooled.size,
+                    PaceEstimateMode.POOLED, PaceEstimateConfidence.HIGH)
             }
         }
-        val peak = continuousResult?.peakCorrelation ?: pooledResult?.peakCorrelation
-        return if (continuous == null && (pooled.size < 12 || pooledSpan < 20_000)) {
-            fallback(PaceFallbackReason.SHORT_CONTINUOUS_SEGMENT, segment?.size ?: 0, peak)
-        } else {
-            fallback(PaceFallbackReason.NO_CLEAR_PEAK, pooled.size, peak)
+        continuousResult?.weak?.let { result ->
+            return success(result, acceptedCount, requireNotNull(continuous).size,
+                PaceEstimateMode.CONTINUOUS, PaceEstimateConfidence.WEAK)
         }
+        pooledResult?.weak?.let { result ->
+            return success(result, acceptedCount, pooled.size,
+                PaceEstimateMode.POOLED, PaceEstimateConfidence.WEAK)
+        }
+
+        // Enough accepted, placed IBI completed calibration, but did not establish
+        // an RSA period. Use an explicit default cue rather than fake personalization.
+        if (pooledSpan >= 0) {
+            return PaceEstimate(10_000, 4_500, 5_500, false, acceptedCount, null, null,
+                pooled.size, PaceEstimateMode.DEFAULT_NO_PEAK, PaceEstimateConfidence.DEFAULT)
+        }
+        return fallback(PaceFallbackReason.SHORT_CONTINUOUS_SEGMENT, segment?.size ?: 0)
     }
 
+    private data class Peak(val cycleMillis: Long, val correlation: Double)
+
     private data class ACFResult(
-        val cycleMillis: Long?,
-        val peakCorrelation: Double?,
+        val strong: Peak?,
+        val weak: Peak?,
     )
 
     private fun analyze(records: List<TimedIbi>?): ACFResult? {
@@ -122,22 +139,30 @@ internal object PaceCalibrator {
         }.maxByOrNull { correlations[it]!! }
         val peak = peakIndex?.let { correlations[it] }
         val trough = correlations.filterNotNull().minOrNull()
-        if (peak == null || peak < 0.6 || trough == null || peak - trough < 0.3) {
-            return ACFResult(null, peak)
+        val strong = if (peak != null && peak >= 0.6 && trough != null && peak - trough >= 0.3) {
+            Peak((6_000L + requireNotNull(peakIndex) * 250L).coerceIn(8_000, 14_000), peak)
+        } else null
+        val weakIndex = (8_000L..14_000L step 250L)
+            .map { ((it - 6_000L) / 250L).toInt() }
+            .filter { correlations[it]?.let { value -> value >= 0.35 } == true }
+            .maxByOrNull { correlations[it]!! }
+        val weak = weakIndex?.let { index ->
+            Peak(6_000L + index * 250L, requireNotNull(correlations[index]))
         }
-        return ACFResult((6_000L + peakIndex * 250L).coerceIn(8_000, 14_000), nullIfNonFinite(peak))
+        return ACFResult(strong, weak)
     }
 
     private fun success(
-        result: ACFResult,
+        result: Peak,
         acceptedCount: Int,
         analyzedCount: Int,
         mode: PaceEstimateMode,
+        confidence: PaceEstimateConfidence,
     ): PaceEstimate {
-        val cycle = requireNotNull(result.cycleMillis)
+        val cycle = result.cycleMillis
         val inhale = (cycle * 0.45).roundToLong()
-        return PaceEstimate(cycle, inhale, cycle - inhale, false, acceptedCount, result.peakCorrelation,
-            null, analyzedCount, mode)
+        return PaceEstimate(cycle, inhale, cycle - inhale, false, acceptedCount, result.correlation,
+            null, analyzedCount, mode, confidence)
     }
 
     private fun nullIfNonFinite(value: Double) = value.takeIf { it.isFinite() }
