@@ -7,20 +7,26 @@ remains the independent sensor-free trainer. No adaptive controller is enabled.
 ## States and lifetime
 
 IDLE -> CALIBRATING -> READY -> RUNNING <-> PAUSED -> SUMMARY.
-Calibration runs for 35,000 monotonic milliseconds from the user's start action,
-including connection time. The timer completes even without sensor callbacks.
-`PaceCalibrator.estimate` sets inhale/exhale durations exactly once, or returns its
-explicit default and reason. Connection failure is shown; absent/insufficient
-IBI still reaches the ordinary pace_v1 fallback. No trial search or rate updates
-occur. The guided run lasts 120,000 active milliseconds; pause excludes time.
+Each calibration attempt runs for 35,000 monotonic milliseconds, including
+connection time. The timer completes even without sensor callbacks. A fallback
+estimate automatically starts a fresh attempt, up to ten attempts total; each
+attempt disconnects and reconnects the sensor and shows its number plus the last
+fallback reason. A non-fallback estimate exits immediately to READY. After ten
+fallbacks, READY clearly reports insufficient signal coverage and offers a manual
+retry or cancellation; it never loops indefinitely. `PaceCalibrator.estimate` sets
+inhale/exhale durations exactly once per attempt. Connection failure is shown;
+absent/insufficient IBI still reaches the ordinary pace_v1 fallback. No trial
+search, rate updates, or lower quality threshold occurs. The guided run lasts
+120,000 active milliseconds; pause excludes time.
 
 Calibration completion, pause, stop, cancellation, backgrounding and destruction
 release the sensor subscription. Resume creates a fresh Samsung source, retains
 pace and active elapsed time, and starts fresh signal/phase windows. Generation
 tokens discard queued callbacks from older subscriptions. Sensor errors pause a
 running session. The activity drives the owner on the UI thread and ticks every
-50 ms only during calibration/running. Keep-screen-on is limited to these states.
-READY and PAUSED do not consume sensor power.
+50 ms only during calibration/running. Keep-screen-on also remains active in READY,
+so the user can read the calibration result until choosing the next action. READY and
+PAUSED do not consume sensor power.
 
 ## Beat mapping and quality
 

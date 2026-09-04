@@ -27,7 +27,8 @@ class GuidedSessionCoordinatorTest {
         )
         fun ready() {
             owner.calibrate()
-            now = 35_000
+            emitSuccessfulCalibrationAttempt()
+            now = 35_000L
             owner.tick()
         }
         fun running() { ready(); owner.start() }
@@ -37,6 +38,17 @@ class GuidedSessionCoordinatorTest {
         fun emit(values: List<Long>, breaks: Set<Int> = emptySet(), rejected: Int = 0) {
             sources.last().sample(SensorSample(now, 60.0, values, SensorSignalQuality.GOOD,
                 SensorSourceType.SAMSUNG, breaks, rejected))
+        }
+        fun emitSuccessfulCalibrationAttempt() {
+            val start = now
+            var time = start
+            while (true) {
+                val ibi = (800 + 65 * sin(2 * PI * (time - start) / 10_000)).roundToLong()
+                time += ibi
+                if (time > start + 35_000) return
+                now = time
+                emit(listOf(ibi))
+            }
         }
     }
 
@@ -59,20 +71,25 @@ class GuidedSessionCoordinatorTest {
         assertFalse(h.owner.estimate!!.usedFallback)
         assertEquals(PaceCalibrator.estimate(beats).cycleMillis, h.owner.config.cycleDurationMillis)
     }
-    @Test fun noDataCalibrationFallsBackAtDeadlineAndStopsSubscription() {
+    @Test fun noDataCalibrationRetriesExactlyTenTimesThenStops() {
         val h = Harness()
         assertEquals(GuidedStage.IDLE, h.owner.stage)
         h.owner.calibrate()
-        h.now = 34_999
-        h.owner.tick()
-        assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
-        h.now++
-        h.owner.tick()
+        repeat(GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS) { attempt ->
+            h.now += 35_000
+            h.owner.tick()
+            if (attempt < GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS - 1) {
+                assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
+                assertEquals(attempt + 2, h.owner.calibrationAttempt)
+            }
+        }
         assertEquals(GuidedStage.READY, h.owner.stage)
+        assertEquals(GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS, h.owner.calibrationAttempt)
         assertTrue(h.owner.estimate!!.usedFallback)
         assertEquals(PaceFallbackReason.TOO_FEW_INTERVALS, h.owner.estimate!!.fallbackReason)
         assertEquals(10_000L, h.owner.config.cycleDurationMillis)
-        assertTrue(h.sources.single().stopped)
+        assertEquals(GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS, h.sources.size)
+        assertTrue(h.sources.all { it.stopped })
     }
 
     @Test fun calibrationMapsLiveEstimateAndRetainsTrailingBreaks() {
@@ -94,6 +111,8 @@ class GuidedSessionCoordinatorTest {
         h.owner.tick()
         assertEquals(PaceCalibrator.estimate(beats).fallbackReason, h.owner.estimate!!.fallbackReason)
         assertEquals(h.owner.estimate!!.inhaleMillis, h.owner.config.inhaleDurationMillis)
+        assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
+        assertEquals(2, h.owner.calibrationAttempt)
     }
 
     @Test fun batchUsesIndividualHistoricalPhasesAndUnchangedPearson() {
@@ -177,8 +196,39 @@ class GuidedSessionCoordinatorTest {
         assertTrue(h.sources.last().stopped)
         h.now = 35_000
         h.owner.tick()
-        assertEquals(GuidedStage.READY, h.owner.stage)
+        assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
+        assertEquals(2, h.owner.calibrationAttempt)
         assertEquals(PaceFallbackReason.TOO_FEW_INTERVALS, h.owner.estimate!!.fallbackReason)
+    }
+    @Test fun successfulRetryExitsLoopImmediately() {
+        val h = Harness()
+        h.owner.calibrate()
+        h.now = 35_000
+        h.owner.tick()
+        assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
+        assertEquals(2, h.owner.calibrationAttempt)
+        h.emitSuccessfulCalibrationAttempt()
+        h.now = 70_000
+        h.owner.tick()
+        assertEquals(GuidedStage.READY, h.owner.stage)
+        assertEquals(2, h.owner.calibrationAttempt)
+        assertFalse(h.owner.estimate!!.usedFallback)
+        assertEquals(2, h.sources.size)
+        assertTrue(h.sources.last().stopped)
+    }
+    @Test fun cancellationDuringRetryStopsSensorAndPreventsAnotherAttempt() {
+        val h = Harness()
+        h.owner.calibrate()
+        h.now = 35_000
+        h.owner.tick()
+        val retrySource = h.sources.last()
+        h.owner.stop()
+        assertEquals(GuidedStage.SUMMARY, h.owner.stage)
+        assertTrue(retrySource.stopped)
+        h.now += 35_000
+        h.owner.tick()
+        assertEquals(GuidedStage.SUMMARY, h.owner.stage)
+        assertEquals(2, h.sources.size)
     }
     @Test fun cancellationCompletionAndSensorFailureCleanUp() {
         val h = Harness()

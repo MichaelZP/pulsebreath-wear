@@ -12,7 +12,12 @@ internal class GuidedSessionCoordinator(
     private val dispatch: (() -> Unit) -> Unit,
     private val changed: () -> Unit = {},
 ) {
+    companion object {
+        const val MAX_CALIBRATION_ATTEMPTS = 10
+    }
+
     var stage = GuidedStage.IDLE; private set
+    var calibrationAttempt = 0; private set
     var estimate: PaceEstimate? = null; private set
     var config = BreathingSessionConfig(); private set
     var cue = BreathingSessionState().snapshot(0, config); private set
@@ -47,11 +52,8 @@ internal class GuidedSessionCoordinator(
         meanBpm = null
         bpmSum = 0.0
         bpmCount = 0
-        calibration.clear()
-        calibrationStart = clock()
-        epochStart = calibrationStart
-        stage = GuidedStage.CALIBRATING
-        subscribe()
+        calibrationAttempt = 1
+        startCalibrationAttempt()
         changed()
     }
 
@@ -63,7 +65,12 @@ internal class GuidedSessionCoordinator(
             config = BreathingSessionConfig(estimate!!.inhaleMillis, estimate!!.exhaleMillis)
             calibration.clear()
             unsubscribe()
-            stage = GuidedStage.READY
+            if (estimate!!.usedFallback && calibrationAttempt < MAX_CALIBRATION_ATTEMPTS) {
+                calibrationAttempt++
+                startCalibrationAttempt()
+            } else {
+                stage = GuidedStage.READY
+            }
         }
         if (stage == GuidedStage.RUNNING) {
             state = state.advance(now, config)
@@ -82,7 +89,7 @@ internal class GuidedSessionCoordinator(
     }
 
     fun start() {
-        if (stage != GuidedStage.READY && stage != GuidedStage.PAUSED) return
+        if ((stage != GuidedStage.READY && stage != GuidedStage.PAUSED) || estimate?.usedFallback == true) return
         clearWindow()
         epochStart = clock()
         state = if (stage == GuidedStage.PAUSED) state.resume(epochStart) else state.start(epochStart)
@@ -147,6 +154,16 @@ internal class GuidedSessionCoordinator(
             status = SensorStreamStatus(SensorStreamState.ERROR, "Could not start sensor. Calibration may use fallback.")
             changed()
         }
+    }
+
+    private fun startCalibrationAttempt() {
+        calibration.clear()
+        clearWindow()
+        latestSample = null
+        calibrationStart = clock()
+        epochStart = calibrationStart
+        stage = GuidedStage.CALIBRATING
+        subscribe()
     }
 
     private fun unsubscribe() {

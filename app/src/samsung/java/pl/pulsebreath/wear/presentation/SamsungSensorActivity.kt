@@ -52,7 +52,8 @@ class SamsungSensorActivity : ComponentActivity() {
             dispatch = { action -> runOnUiThread { action() } },
             changed = {
                 revision++
-                if (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING) {
+                if (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING ||
+                    session.stage == GuidedStage.READY) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             },
@@ -90,15 +91,24 @@ class SamsungSensorActivity : ComponentActivity() {
                                     Button(onClick = session::calibrate) { Text("Sense my pace") }
                                 }
                                 GuidedStage.CALIBRATING -> {
-                                    Text("Sensing for 35 seconds. Breathe naturally.", textAlign = TextAlign.Center)
+                                    Text("Sensing attempt ${session.calibrationAttempt}/${GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS}. Breathe naturally.", textAlign = TextAlign.Center)
+                                    session.estimate?.takeIf { it.usedFallback }?.let {
+                                        Text("Last attempt: ${it.fallbackReason?.name ?: "fallback"}", textAlign = TextAlign.Center)
+                                    }
                                     Text(session.status.message, textAlign = TextAlign.Center)
                                     Button(onClick = session::stop) { Text("Cancel") }
                                 }
                                 GuidedStage.READY -> {
-                                    Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
                                     PaceDetails(session)
-                                    Button(onClick = session::start) { Text("Start breathing") }
-                                    Button(onClick = session::stop) { Text("Cancel") }
+                                    if (session.estimate?.usedFallback == true) {
+                                        Text("No usable pace after ${session.calibrationAttempt} attempts. Signal coverage was too weak; adjust fit and retry.", textAlign = TextAlign.Center)
+                                        Button(onClick = session::calibrate) { Text("Try again") }
+                                        Button(onClick = session::stop) { Text("Cancel") }
+                                    } else {
+                                        Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
+                                        Button(onClick = session::start) { Text("Start breathing") }
+                                        Button(onClick = session::stop) { Text("Cancel") }
+                                    }
                                 }
                                 GuidedStage.RUNNING, GuidedStage.PAUSED -> {
                                     Text(if (session.stage == GuidedStage.PAUSED) "Paused" else session.cue.phase.name)
@@ -155,6 +165,8 @@ private fun PaceDetails(session: GuidedSessionCoordinator) {
     session.estimate?.let {
         Text("usedFallback: ${it.usedFallback}")
         Text("Fallback reason: ${it.fallbackReason?.name ?: "none"}", textAlign = TextAlign.Center)
+        Text("Eligible calibration IBIs: ${it.acceptedIbiCount}", textAlign = TextAlign.Center)
+        Text("Longest analyzed segment: ${it.analyzedIbiCount}", textAlign = TextAlign.Center)
     } ?: Text("Calibration cancelled; no pace estimate.")
 }
 
