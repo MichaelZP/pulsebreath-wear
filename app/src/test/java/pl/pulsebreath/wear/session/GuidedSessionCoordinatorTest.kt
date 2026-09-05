@@ -127,6 +127,28 @@ class GuidedSessionCoordinatorTest {
         assertTrue(h.sources.all { it.stopped })
     }
 
+    @Test fun readyRetryRestartsCalibrationFromAttemptOneWithOneActiveSubscription() {
+        val h = Harness()
+        h.owner.calibrate()
+        repeat(GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS) {
+            h.now += 35_000
+            h.owner.tick()
+        }
+        assertEquals(GuidedStage.READY, h.owner.stage)
+        assertEquals(GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS, h.owner.calibrationAttempt)
+        val previousSources = h.sources.toList()
+
+        h.owner.retryCalibration()
+
+        assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
+        assertEquals(1, h.owner.calibrationAttempt)
+        assertNull(h.owner.estimate)
+        assertEquals(1, h.sources.count { !it.stopped })
+        assertTrue(previousSources.all { it.stopped })
+        assertFalse(h.sources.last().stopped)
+        assertEquals(previousSources.size + 1, h.sources.size)
+    }
+
     @Test fun calibrationMapsLiveEstimateAndRetainsTrailingBreaks() {
         val h = Harness()
         h.owner.calibrate()

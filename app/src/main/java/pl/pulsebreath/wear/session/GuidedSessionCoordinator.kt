@@ -45,15 +45,14 @@ internal class GuidedSessionCoordinator(
     fun calibrate() {
         if (stage != GuidedStage.IDLE && stage != GuidedStage.SUMMARY) return
         unsubscribe()
-        clearWindow()
-        estimate = null
-        latestSample = null
-        timing = TimingDiagnostics()
-        meanBpm = null
-        bpmSum = 0.0
-        bpmCount = 0
-        calibrationAttempt = 1
-        startCalibrationAttempt()
+        beginCalibrationAttempt(resetPace = false)
+        changed()
+    }
+
+    fun retryCalibration() {
+        if (stage != GuidedStage.READY) return
+        unsubscribe()
+        beginCalibrationAttempt(resetPace = true)
         changed()
     }
 
@@ -171,6 +170,21 @@ internal class GuidedSessionCoordinator(
         epochStart = calibrationStart
         stage = GuidedStage.CALIBRATING
         subscribe()
+    }
+
+    private fun beginCalibrationAttempt(resetPace: Boolean) {
+        clearWindow()
+        estimate = null
+        if (resetPace) {
+            config = BreathingSessionConfig()
+        }
+        latestSample = null
+        timing = TimingDiagnostics()
+        meanBpm = null
+        bpmSum = 0.0
+        bpmCount = 0
+        calibrationAttempt = 1
+        startCalibrationAttempt()
     }
 
     private fun unsubscribe() {
