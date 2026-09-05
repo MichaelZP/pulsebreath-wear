@@ -115,7 +115,7 @@ class SamsungSensorActivity : ComponentActivity() {
                                     PaceDetails(session)
                                     if (session.estimate?.usedFallback == true) {
                                         Text("No usable pace after ${session.calibrationAttempt} attempts. Signal coverage was too weak; adjust fit and retry.", textAlign = TextAlign.Center)
-                                        Button(onClick = session::calibrate) { Text("Try again") }
+                                        Button(onClick = session::retryCalibration) { Text("Try again") }
                                         Button(onClick = session::stop) { Text("Cancel") }
                                     } else {
                                         Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
