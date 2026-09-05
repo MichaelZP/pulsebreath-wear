@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original PulseBreath heart-and-lungs artwork, Apache-2.0. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#55D6C2" android:pathData="M46,36 C42,33 34,43 31,54 C28,64 31,72 38,72 C40,72 42,71 43,69 C38,64 39,57 46,54 Z" />
+    <path android:fillColor="#55D6C2" android:pathData="M62,36 C66,33 74,43 77,54 C80,64 77,72 70,72 C68,72 66,71 65,69 C70,64 69,57 62,54 Z" />
+    <path android:fillColor="#55D6C2" android:pathData="M52,30 L56,30 L56,43 L63,49 L60,53 L54,48 L48,53 L45,49 L52,43 Z" />
+    <path android:fillColor="#FF6B7A" android:pathData="M54,77 C51,74 43,68 43,62 C43,55 51,54 54,59 C57,54 65,55 65,62 C65,68 57,74 54,77 Z" />
+</vector>

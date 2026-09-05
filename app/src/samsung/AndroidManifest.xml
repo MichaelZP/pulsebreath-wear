@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS"
+        android:maxSdkVersion="35" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+
+    <application>
+        <!-- The Samsung flavor owns the watch launcher. Do not merge the generic
+             app or debug diagnostics launchers into this sensor session task. -->
+        <activity
+            android:name=".presentation.MainActivity"
+            tools:node="remove" />
+        <activity
+            android:name=".presentation.DebugDiagnosticsActivity"
+            tools:node="remove" />
+        <activity
+            android:name=".presentation.SamsungSensorActivity"
+            android:exported="true"
+            android:label="PulseBreath Sensor"
+            android:taskAffinity=""
+            android:theme="@style/MainActivityTheme.Starting">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

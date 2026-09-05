@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!-- samsungDebug is more specific than src/debug, so it removes the
+             diagnostic launcher contributed by that source set. -->
+        <activity
+            android:name=".presentation.DebugDiagnosticsActivity"
+            tools:node="remove" />
+    </application>
+
+</manifest>

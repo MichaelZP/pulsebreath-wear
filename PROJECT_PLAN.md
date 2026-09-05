@@ -1,7 +1,7 @@
 # PulseBreath Wear project plan
 
 Status date: 2026-09-03  
-Current milestone: 0 - completed; awaiting explicit approval to start Milestone 1
+Current milestone: 5 - implemented and verified; awaiting user review and acceptance
 
 ## Objective
 
@@ -14,7 +14,7 @@ Develop a standalone Wear OS breathing trainer for Samsung Galaxy Watch in small
 | Project directory | `C:\Users\user\Documents\Codex\pulsebreath-wear` | Confirmed |
 | App name | `PulseBreath Wear` | Working name |
 | Repository name | `pulsebreath-wear` | Working name; no remote repository authorized |
-| Application ID | `com.example.pulsebreathwear` | Provisional; replace with a durable ID before Samsung integration, signing, or distribution |
+| Application ID | `dev.prylski.breath` | Samsung; Demo adds `.demo` |
 | Source-code license | Apache-2.0 | Confirmed; add the license file in the appropriate repository milestone |
 | GitHub visibility | Private proposed | Not yet authorized; no GitHub operation may be performed |
 | Product category | Wellness/research | Confirmed; not diagnostic or medical software |
@@ -41,7 +41,7 @@ The supplied screenshots came from the Galaxy Wearable phone app, so they did no
 | CPU | Intel Core i7-4720HQ, 8 logical processors | Older than current emulator guidance; verify performance |
 | RAM | 15.9 GB | Meets the current minimum for Studio plus one emulator, with little margin |
 | Virtualization | WHPX 10.0.26100 detected and operational | Verified by a complete Wear OS AVD boot |
-| Disk C | 7.6 GB free after IDE installation | Keep SDK, AVD images, and build caches off C where practical |
+| Disk C | 14.5 GB free at the final Milestone 1 audit; a transient 2.3 GB low was observed during tool activity | Monitor free space while keeping SDK, AVD, and Gradle cache on D |
 | Disk D | 51.6 GB free after SDK and AVD installation | SDK and AVD data installed here |
 | Git | 2.55.0.windows.4 | Available |
 | Java | System Java 8 remains unchanged; Android Studio bundles OpenJDK 25.0.3 | Use the bundled JDK for Android/Gradle |
@@ -94,6 +94,8 @@ Acceptance:
 
 Acceptance: the smallest app builds and is manually visible on an emulator or explicitly accepted physical-device fallback.
 
+Implementation status (2026-09-03): complete on `feature/milestone-1-basic-wear-app`; automated and visual verification passed. See `docs/milestone-1.md`.
+
 ### Milestone 2 - Sensor-free breathing trainer
 
 - Add a two-minute session with configurable 4.5-second inhale and 5.5-second exhale phases.
@@ -102,6 +104,8 @@ Acceptance: the smallest app builds and is manually visible on an emulator or ex
 
 Acceptance: a complete two-minute session works without sensors, including pause, resume, and cancel.
 
+Implementation status (2026-09-03): complete on `feature/milestone-2-breathing-trainer`; automated and visual verification passed. See `docs/milestone-2.md`.
+
 ### Milestone 3 - Simulated BPM and IBI
 
 - Define timestamped BPM/IBI/quality models and a sensor-source interface.
@@ -109,6 +113,8 @@ Acceptance: a complete two-minute session works without sensors, including pause
 - Keep diagnostics limited to debug or demo builds and use independently calculated test fixtures.
 
 Acceptance: sensor-independent algorithms run repeatably on the development computer and emulator.
+
+Implementation status (2026-09-03): complete on `feature/milestone-3-simulated-bpm-ibi`; automated and visual verification passed. See `docs/milestone-3.md`.
 
 ### Milestone 4 - Samsung Health Sensor SDK
 
@@ -119,6 +125,8 @@ Acceptance: sensor-independent algorithms run repeatably on the development comp
 
 Acceptance: real BPM and IBI are demonstrated on the physical watch in developer mode; emulator claims are prohibited.
 
+Implementation status (2026-09-03): complete on `feature/milestone-4-samsung-sensor`; automated checks, emulator regression tests, and physical Galaxy Watch BPM/IBI plus stop-lifecycle verification passed. See `docs/milestone-4.md`.
+
 ### Milestone 5 - Signal quality and basic HRV
 
 - Specify formulas, units, examples, thresholds, window lengths, and validation status in `docs/metrics.md` before implementation.
@@ -126,6 +134,8 @@ Acceptance: real BPM and IBI are demonstrated on the physical watch in developer
 - Display signal quality independently from biofeedback results.
 
 Acceptance: results match documented test vectors and artifact handling is explicit.
+
+Implementation status (2026-09-04): complete on `feature/milestone-5-signal-quality-hrv`; documented fixtures, automated calculations, lint, and emulator UI regression tests passed. See `docs/metrics.md` and `docs/milestone-5.md`.
 
 ### Milestone 6 - Biofeedback and resonance calibration
 
@@ -135,6 +145,8 @@ Acceptance: results match documented test vectors and artifact handling is expli
 
 Acceptance: the metric has an explicit formula and range, repeatable tests, and clearly presented limitations.
 
+Implementation status (2026-09-04): `alignment_v1` is implemented and automatically verified for the fixed-rate simulated diagnostic stream. It is a guarded, non-clinical correlation score and deliberately does not run an automatic rate calibration. See `docs/metrics.md` and `docs/milestone-6.md`.
+
 ### Milestone 7 - Validation
 
 - Write `docs/validation_protocol.md` before collecting data.
@@ -143,6 +155,8 @@ Acceptance: the metric has an explicit formula and range, repeatable tests, and 
 - Keep participant data outside Git and pause for ethics/privacy review before involving other people.
 
 Acceptance: the protocol, exclusion rules, comparison metrics, and limitations are reproducible.
+
+Implementation status (2026-09-04): preliminary self-test confirmed start/stop and summary retention. Accuracy validation remains open. A `quality_v1.1` correction preserves rejected-IBI boundaries and suppresses displayed RMSSD for insufficient windows. See `docs/validation_protocol.md` and `docs/milestone-7.md`; participant readings are not stored in Git.
 
 ### Milestone 8 - GitHub, releases, and distribution review
 
@@ -165,7 +179,7 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 | Background execution or haptics drains battery | Use monotonic timing, lifecycle-aware cleanup, short sessions, and milestone-specific battery review |
 | Samsung policy or service-version incompatibility | Perform runtime capability checks and record the installed Health Sensor Service version before integration |
 
-## Immediate next actions
+## Completed setup actions
 
 1. Completed: initialize the local Git repository on `main` without committing or configuring a remote.
 2. Completed: install the latest stable Android Studio and the required Android SDK components.
@@ -176,7 +190,14 @@ Acceptance: each GitHub or distribution action has separate explicit user approv
 7. Verified by the user: `adb version` reports Platform-Tools 37.0.1 and `emulator -list-avds` reports `PulseBreath_WearOS_7_API_37`.
 8. Completed: confirm Health Sensor Service 1.8.00.07 and enable its developer mode on the physical Galaxy Watch9. The exact Wear OS version can be recorded before Samsung SDK integration.
 9. Completed: document the device-specific ADB route and observed wireless-debugging failures without storing the watch address, transient ports, pairing code, or persistent identifiers.
-10. Milestone 0 is complete. Wait for explicit user approval before creating the Milestone 1 application.
+10. Milestone 0 was accepted and committed locally as `7d597db`.
+
+## Immediate next actions
+
+1. Review the completed local Milestone 8 preparation and verification in `docs/milestone-8.md`.
+2. Review `docs/release-checklist.md`; publication and distribution remain separate approval gates.
+3. Request acceptance of the exact local commit before committing. Do not publish automatically.
+4. Keep accuracy validation open; pause for privacy and ethics review before involving another participant.
 
 ## Official references
 

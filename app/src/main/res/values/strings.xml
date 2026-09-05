@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">PulseBreath Wear</string>
+    <string name="home_title">PulseBreath Wear</string>
+    <string name="start">Start</string>
+    <string name="session_summary">2 min · 4,5 s / 5,5 s</string>
+    <string name="inhale">Wdech</string>
+    <string name="exhale">Wydech</string>
+    <string name="paused">Pauza</string>
+    <string name="pause">Pauza</string>
+    <string name="resume">Dalej</string>
+    <string name="cancel">Stop</string>
+    <string name="session_completed">Sesja zakończona</string>
+    <string name="session_cancelled">Sesja przerwana</string>
+    <string name="restart">Od nowa</string>
+    <string name="back">Wróć</string>
+    <string name="remaining_time">%1$d:%2$02d</string>
+</resources>

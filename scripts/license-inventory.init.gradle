@@ -1,0 +1,73 @@
+// Read-only dependency audit. Run with --no-configuration-cache.
+import groovy.json.JsonOutput
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
+def settingsClasspath
+gradle.settingsEvaluated { settings ->
+    settingsClasspath = settings.buildscript.configurations.findByName('classpath')
+}
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    root.tasks.register('licenseInventory') {
+        group = 'verification'
+        description = 'Resolve declared project/build classpaths and export local audit evidence.'
+        doLast {
+            def rows = [:]
+            def scopes = []
+            def failures = []
+            def inspect = { String scope, config ->
+                if (config == null || !config.canBeResolved) return
+                scopes << scope
+                try {
+                    config.incoming.resolutionResult.allComponents.each { component ->
+                        if (component.id instanceof ModuleComponentIdentifier) {
+                            def id = component.id
+                            def key = "${id.group}:${id.module}:${id.version}".toString()
+                            if (!rows.containsKey(key)) rows[key] = [coordinate: key, scopes: [], artifacts: []]
+                            if (!rows[key].scopes.contains(scope)) rows[key].scopes << scope
+                        }
+                    }
+                    def view = config.incoming.artifactView {
+                        lenient = true
+                        // APK/test self-project artifacts have multiple Android variants.
+                        // Inventory external modules here; own code and local AAR are separate.
+                        componentFilter { it instanceof ModuleComponentIdentifier }
+                    }.artifacts
+                    view.failures.each { failures << [scope: scope, message: it.message] }
+                    view.artifacts.each { artifact ->
+                        def id = artifact.id.componentIdentifier
+                        if (id instanceof ModuleComponentIdentifier) {
+                            def key = "${id.group}:${id.module}:${id.version}".toString()
+                            def file = artifact.file.absolutePath
+                            if (rows[key] != null && !rows[key].artifacts.contains(file)) rows[key].artifacts << file
+                        }
+                    }
+                } catch (Exception ex) {
+                    failures << [scope: scope, message: ex.message]
+                }
+            }
+            inspect('build:settings:classpath', settingsClasspath)
+            root.allprojects.each { project ->
+                inspect("build:${project.path}:classpath".toString(), project.buildscript.configurations.findByName('classpath'))
+                project.configurations.findAll {
+                    it.canBeResolved && (it.name.endsWith('CompileClasspath') ||
+                    it.name.endsWith('RuntimeClasspath') ||
+                    it.name.toLowerCase().contains('annotationprocessor') ||
+                    it.name.toLowerCase().contains('compilerclasspath') ||
+                    it.name.toLowerCase().contains('lintclasspath'))
+                }.sort { it.name }.each { config ->
+                    inspect("${project.path}:${config.name}".toString(), config)
+                }
+            }
+            def report = root.layout.buildDirectory.file('reports/licenses/resolution.json').get().asFile
+            report.parentFile.mkdirs()
+            report.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+                schema: 1, gradle: gradle.gradleVersion,
+                scopes: scopes.sort(), modules: rows.values().sort { it.coordinate }, failures: failures
+            ])) + '\n'
+            println "License audit: ${rows.size()} module coordinates, ${scopes.size()} scopes, ${failures.size()} resolution failures."
+            println "Local evidence: ${report} (contains local paths; do not commit)."
+            if (!failures.isEmpty()) throw new GradleException('Incomplete license inventory: inspect local resolution failures.')
+        }
+    }
+}
