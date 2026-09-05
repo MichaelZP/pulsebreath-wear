@@ -305,4 +305,25 @@ class GuidedSessionCoordinatorTest {
         assertEquals(BreathingSessionStatus.COMPLETED, h.owner.cue.status)
         assertTrue(h.sources.last().stopped)
     }
+
+    @Test fun newCalibrationAfterCompletedSessionStartsWithCleanStateAndCue() {
+        val h = Harness()
+        h.ready()
+        h.owner.start()
+        h.now += h.owner.config.sessionDurationMillis
+        h.owner.tick()
+        assertEquals(GuidedStage.SUMMARY, h.owner.stage)
+        assertEquals(BreathingSessionStatus.COMPLETED, h.owner.cue.status)
+        assertEquals(120_000L, h.owner.cue.elapsedActiveMillis)
+
+        h.owner.calibrate()
+        assertEquals(GuidedStage.CALIBRATING, h.owner.stage)
+        assertEquals(BreathingSessionStatus.IDLE, h.owner.cue.status)
+        assertEquals(0L, h.owner.cue.elapsedActiveMillis)
+
+        h.owner.stop()
+        assertEquals(GuidedStage.SUMMARY, h.owner.stage)
+        assertEquals(BreathingSessionStatus.IDLE, h.owner.cue.status)
+        assertEquals(0L, h.owner.cue.elapsedActiveMillis)
+    }
 }

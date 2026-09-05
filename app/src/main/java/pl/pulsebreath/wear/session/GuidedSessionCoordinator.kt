@@ -178,6 +178,8 @@ internal class GuidedSessionCoordinator(
         if (resetPace) {
             config = BreathingSessionConfig()
         }
+        state = state.reset()
+        cue = state.snapshot(clock(), config)
         latestSample = null
         timing = TimingDiagnostics()
         meanBpm = null
