@@ -20,6 +20,9 @@ No public release or accuracy certification is implied by the internal version `
 - `pace_v1.1` estimates IBI periodicity, not chest respiration. Wrist PPG IBI is
   not established ECG NN data; weak or discontinuous data uses the explicit
   fallback and shows its reason.
+- **Blunt quality note:** consumer wrist "HRV/IBI" is usually PPG/PRV, not ECG.
+  Vendors rarely state that gap in marketing. See
+  [docs/wrist-ppg-ibi-quality.md](docs/wrist-ppg-ibi-quality.md).
 - The sensor-free `MainActivity` trainer remains a separate mode.
 - No cloud, account, raw sensor persistence or export feature. Samsung stores only bounded,
   derived local guided-session summaries (up to 200), with per-record deletion and clear-all.
