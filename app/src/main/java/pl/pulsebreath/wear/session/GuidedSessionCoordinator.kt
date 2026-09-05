@@ -12,8 +12,10 @@ internal class GuidedSessionCoordinator(
     private val clock: () -> Long,
     private val dispatch: (() -> Unit) -> Unit,
     private val changed: () -> Unit = {},
+    private val diagnostic: (String) -> Unit = {},
     private val started: (BreathingSessionConfig, PaceEstimate) -> Unit = { _, _ -> },
     private val finalized: (Long, BreathingSessionStatus) -> Unit = { _, _ -> },
+    private val completed: () -> Unit = {},
     initialSessionDurationMillis: Long = 120_000L,
 ) {
     companion object {
@@ -33,6 +35,9 @@ internal class GuidedSessionCoordinator(
     var latestSample: SensorSample? = null; private set
     var timing = TimingDiagnostics(); private set
     var meanBpm: Double? = null; private set
+    var dynamicTuningEnabled = true; private set
+    var dynamicTuningAllowsWeak = true; private set
+    var pendingDynamicEstimate: PaceEstimate? = null; private set
     private var bpmSum = 0.0
     private var bpmCount = 0
     private var state = BreathingSessionState()
@@ -49,6 +54,7 @@ internal class GuidedSessionCoordinator(
     private val calibration = mutableListOf<TimedIbi>()
     private val samples = mutableListOf<SensorSample>()
     private val observations = mutableListOf<AlignmentObservation>()
+    private val dynamicPaceTuner = DynamicPaceTuner()
     private var persistedRun = false
 
     val readyVisibleMillis: Long
@@ -65,6 +71,7 @@ internal class GuidedSessionCoordinator(
 
     fun calibrate() {
         if (stage != GuidedStage.IDLE && stage != GuidedStage.SUMMARY) return
+        diagnostic("calibrate requested stage=$stage")
         unsubscribe()
         beginCalibrationAttempt(resetPace = false)
         changed()
@@ -72,21 +79,26 @@ internal class GuidedSessionCoordinator(
 
     fun retryCalibration() {
         if (stage != GuidedStage.READY) return
+        diagnostic("calibration retry requested attempt=$calibrationAttempt")
         unsubscribe()
         beginCalibrationAttempt(resetPace = true)
         changed()
     }
 
     fun onBackground() {
+        diagnostic("onBackground stage=$stage")
         when (stage) {
             GuidedStage.READY -> pauseReadyPreparation()
             GuidedStage.RUNNING -> pause(GuidedPauseReason.BACKGROUND)
-            GuidedStage.CALIBRATING -> interruptCalibration()
+            // Calibration is a short, bounded acquisition loop. A transient Wear OS
+            // onStop must not discard it and send the user back to the app list.
+            GuidedStage.CALIBRATING -> Unit
             else -> Unit
         }
     }
 
     fun onForeground() {
+        diagnostic("onForeground stage=$stage")
         if (stage == GuidedStage.READY && estimate?.usedFallback != true && readyForegroundSinceMillis == null) {
             readyForegroundSinceMillis = clock()
             changed()
@@ -97,7 +109,8 @@ internal class GuidedSessionCoordinator(
         val now = clock()
         if (stage == GuidedStage.CALIBRATING &&
             now - calibrationStart >= PaceCalibrator.CALIBRATION_DURATION_MILLIS) {
-            estimate = PaceCalibrator.estimate(calibration.toList())
+            estimate = PaceCalibrator.estimateCalibration(calibration.toList(), now)
+            diagnostic("calibration attempt=$calibrationAttempt fallback=${estimate!!.usedFallback} accepted=${estimate!!.acceptedIbiCount}")
             config = BreathingSessionConfig(
                 estimate!!.inhaleMillis,
                 estimate!!.exhaleMillis,
@@ -115,6 +128,15 @@ internal class GuidedSessionCoordinator(
         if (stage == GuidedStage.RUNNING) {
             state = state.advance(now, config)
             cue = state.snapshot(now, config)
+            pendingDynamicEstimate?.let { estimate ->
+                if (cue.phase == BreathingPhase.INHALE && cue.phaseProgress <= 0.03f) {
+                    state = state.reanchorPhase(now, config)
+                    config = config.copy(inhaleDurationMillis = estimate.inhaleMillis, exhaleDurationMillis = estimate.exhaleMillis)
+                    cue = state.snapshot(now, config)
+                    pendingDynamicEstimate = null
+                    diagnostic("dynamic pace applied cycle=${config.cycleDurationMillis}")
+                }
+            }
             if (state.status == BreathingSessionStatus.COMPLETED) {
                 stop()
                 return
@@ -131,6 +153,7 @@ internal class GuidedSessionCoordinator(
     fun start() {
         if (stage == GuidedStage.READY && !canStart) return
         if ((stage != GuidedStage.READY && stage != GuidedStage.PAUSED) || estimate?.usedFallback == true) return
+        diagnostic("start stage=$stage")
         val newRun = stage == GuidedStage.READY
         clearWindow()
         epochStart = clock()
@@ -156,6 +179,24 @@ internal class GuidedSessionCoordinator(
         return true
     }
 
+    fun setDynamicTuningEnabled(enabled: Boolean): Boolean {
+        if ((stage != GuidedStage.IDLE && stage != GuidedStage.READY) || estimate?.usedFallback == true) return false
+        dynamicTuningEnabled = enabled
+        pendingDynamicEstimate = null
+        dynamicPaceTuner.reset()
+        changed()
+        return true
+    }
+
+    fun setDynamicTuningAllowsWeak(allowed: Boolean): Boolean {
+        if ((stage != GuidedStage.IDLE && stage != GuidedStage.READY) || estimate?.usedFallback == true) return false
+        dynamicTuningAllowsWeak = allowed
+        pendingDynamicEstimate = null
+        dynamicPaceTuner.reset()
+        changed()
+        return true
+    }
+
     fun pause(reason: GuidedPauseReason = GuidedPauseReason.USER) {
         if (stage != GuidedStage.RUNNING) return
         tick()
@@ -165,12 +206,15 @@ internal class GuidedSessionCoordinator(
         pauseReason = reason
         unsubscribe()
         clearWindow()
+        dynamicPaceTuner.reset()
+        pendingDynamicEstimate = null
         stage = GuidedStage.PAUSED
         changed()
     }
 
     fun stop() {
         if (stage == GuidedStage.IDLE || stage == GuidedStage.SUMMARY) return
+        diagnostic("stop stage=$stage persisted=$persistedRun")
         val wasRunning = stage == GuidedStage.RUNNING
         if (wasRunning) refresh(clock())
         val activeDuration = state.snapshot(clock(), config).elapsedActiveMillis
@@ -180,6 +224,8 @@ internal class GuidedSessionCoordinator(
         calibration.clear()
         samples.clear()
         observations.clear()
+        dynamicPaceTuner.reset()
+        pendingDynamicEstimate = null
         phases.clear()
         lastPhaseTime = null
         lastBeatTime = null
@@ -187,10 +233,14 @@ internal class GuidedSessionCoordinator(
         latestSample = null
         clearReadyPreparation()
         stage = GuidedStage.SUMMARY
+        val completedRun = wasRunning && state.status == BreathingSessionStatus.COMPLETED
         if (persistedRun) {
             persistedRun = false
-            finalized(activeDuration, if (wasRunning && state.status == BreathingSessionStatus.COMPLETED) BreathingSessionStatus.COMPLETED else BreathingSessionStatus.CANCELLED)
+            finalized(activeDuration, if (completedRun) BreathingSessionStatus.COMPLETED else BreathingSessionStatus.CANCELLED)
         }
+        // The record has been finalized and the coordinator is in SUMMARY, so a
+        // series owner may safely begin a fresh calibration synchronously.
+        if (completedRun) completed()
         changed()
     }
 
@@ -207,6 +257,7 @@ internal class GuidedSessionCoordinator(
             next.start(onStatus = { value -> dispatch {
                 if (token == generation) {
                     status = value
+                    diagnostic("sensor status=${value.state} message=${value.message}")
                     if (value.state == SensorStreamState.ERROR || value.state == SensorStreamState.UNSUPPORTED) {
                         unsubscribe()
                         // Calibration timer still produces an explicit pace_v1 fallback.
@@ -219,6 +270,7 @@ internal class GuidedSessionCoordinator(
                 if (token == generation) accept(sample)
             } })
         } catch (_: Exception) {
+            diagnostic("sensor start exception")
             unsubscribe()
             if (stage == GuidedStage.RUNNING) pause()
             status = SensorStreamStatus(SensorStreamState.ERROR, "Could not start sensor. Calibration may use fallback.")
@@ -339,6 +391,12 @@ internal class GuidedSessionCoordinator(
                 bpmSum += it
                 bpmCount++
                 meanBpm = bpmSum / bpmCount
+            }
+        }
+        if (stage == GuidedStage.RUNNING && dynamicTuningEnabled) {
+            dynamicPaceTuner.observe(batch.intervals, receipt, config.cycleDurationMillis, dynamicTuningAllowsWeak)?.let {
+                pendingDynamicEstimate = it
+                diagnostic("dynamic pace pending cycle=${it.cycleMillis}")
             }
         }
         refresh(clock())

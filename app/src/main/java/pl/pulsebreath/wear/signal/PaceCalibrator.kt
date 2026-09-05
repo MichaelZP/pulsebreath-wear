@@ -8,7 +8,7 @@ internal enum class PaceFallbackReason {
     TOO_FEW_INTERVALS, SHORT_CONTINUOUS_SEGMENT, INVALID_TIME_ORDER, NO_CLEAR_PEAK,
 }
 
-internal enum class PaceEstimateMode { CONTINUOUS, POOLED, DEFAULT_NO_PEAK, FALLBACK }
+internal enum class PaceEstimateMode { CONTINUOUS, POOLED, CONFIRMED_WEAK, DEFAULT_NO_PEAK, FALLBACK }
 
 internal enum class PaceEstimateConfidence { HIGH, WEAK, DEFAULT, NONE }
 
@@ -27,13 +27,61 @@ internal data class PaceEstimate(
 
 /** Experimental pace_v1.2; estimates IBI periodicity, not measured respiration. */
 internal object PaceCalibrator {
-    const val CALIBRATION_DURATION_MILLIS = 35_000L
+    const val CALIBRATION_FRAME_MILLIS = 35_000L
+    const val CALIBRATION_DURATION_MILLIS = CALIBRATION_FRAME_MILLIS * 2
+    const val WEAK_FRAME_AGREEMENT_MILLIS = 250L
 
     fun estimate(timedIbi: List<TimedIbi>): PaceEstimate {
         val latest = timedIbi.mapNotNull { it.endMillis }.maxOrNull() ?: 0L
-        val start = (latest - CALIBRATION_DURATION_MILLIS).coerceAtLeast(0)
+        return estimateInWindow(
+            timedIbi,
+            start = (latest - CALIBRATION_FRAME_MILLIS).coerceAtLeast(0L),
+            end = latest,
+        )
+    }
+
+    /**
+     * A 70-second calibration. Strong evidence may be accepted directly; weak
+     * evidence requires two disjoint 35-second windows that agree on the cycle.
+     */
+    fun estimateCalibration(
+        timedIbi: List<TimedIbi>,
+        calibrationEndMillis: Long = timedIbi.mapNotNull { it.endMillis }.maxOrNull() ?: 0L,
+    ): PaceEstimate {
+        val end = calibrationEndMillis.coerceAtLeast(0L)
+        val start = (end - CALIBRATION_DURATION_MILLIS).coerceAtLeast(0L)
+        val overall = estimateInWindow(timedIbi, start, end)
+        if (overall.confidence != PaceEstimateConfidence.WEAK || end - start < CALIBRATION_DURATION_MILLIS) {
+            return overall
+        }
+        val split = start + CALIBRATION_FRAME_MILLIS
+        val first = estimateInWindow(timedIbi, start, split)
+        val second = estimateInWindow(timedIbi, split, end)
+        val frameConfidence = setOf(PaceEstimateConfidence.HIGH, PaceEstimateConfidence.WEAK)
+        if (first.confidence !in frameConfidence || second.confidence !in frameConfidence ||
+            abs(first.cycleMillis - second.cycleMillis) > WEAK_FRAME_AGREEMENT_MILLIS
+        ) {
+            return defaultCue(overall.acceptedIbiCount, overall.analyzedIbiCount)
+        }
+        val cycle = (first.cycleMillis + second.cycleMillis) / 2L
+        val inhale = (cycle * 0.45).roundToLong()
+        return PaceEstimate(
+            cycleMillis = cycle,
+            inhaleMillis = inhale,
+            exhaleMillis = cycle - inhale,
+            usedFallback = false,
+            acceptedIbiCount = overall.acceptedIbiCount,
+            peakCorrelation = minOf(first.peakCorrelation ?: 0.0, second.peakCorrelation ?: 0.0),
+            fallbackReason = null,
+            analyzedIbiCount = overall.analyzedIbiCount,
+            estimateMode = PaceEstimateMode.CONFIRMED_WEAK,
+            confidence = PaceEstimateConfidence.WEAK,
+        )
+    }
+
+    private fun estimateInWindow(timedIbi: List<TimedIbi>, start: Long, end: Long): PaceEstimate {
         val acceptedCount = timedIbi.count {
-            it.accepted && it.ibiMillis > 0 && it.endMillis?.let { t -> t in start..latest } == true
+            it.accepted && it.ibiMillis > 0 && it.endMillis?.let { t -> t in start..end } == true
         }
         fun fallback(reason: PaceFallbackReason, analyzed: Int = 0, peak: Double? = null) =
             PaceEstimate(10_000, 4_500, 5_500, true, acceptedCount, peak, reason, analyzed,
@@ -49,7 +97,7 @@ internal object PaceCalibrator {
             if (t != null && t >= 0) {
                 previousTime = t
             }
-            if (!beat.accepted || beat.ibiMillis <= 0 || t == null || t < start) {
+            if (!beat.accepted || beat.ibiMillis <= 0 || t == null || t !in start..end) {
                 current = mutableListOf()
                 continue
             }
@@ -73,7 +121,7 @@ internal object PaceCalibrator {
         // The pooled path keeps original receipt order and permits explicit discontinuities.
         // It is only considered after the stronger continuous path fails.
         val pooled = timedIbi.filter {
-            it.accepted && it.ibiMillis > 0 && it.endMillis?.let { t -> t in start..latest } == true
+            it.accepted && it.ibiMillis > 0 && it.endMillis?.let { t -> t in start..end } == true
         }
         val pooledSpan = if (pooled.isEmpty()) 0L else pooled.last().endMillis!! - pooled.first().endMillis!!
         val pooledResult = if (pooled.size >= 12 && pooledSpan >= 20_000) analyze(pooled) else null
@@ -94,12 +142,13 @@ internal object PaceCalibrator {
 
         // Enough accepted, placed IBI completed calibration, but did not establish
         // an RSA period. Use an explicit default cue rather than fake personalization.
-        if (pooledSpan >= 0) {
-            return PaceEstimate(10_000, 4_500, 5_500, false, acceptedCount, null, null,
-                pooled.size, PaceEstimateMode.DEFAULT_NO_PEAK, PaceEstimateConfidence.DEFAULT)
-        }
+        if (pooledSpan >= 0) return defaultCue(acceptedCount, pooled.size)
         return fallback(PaceFallbackReason.SHORT_CONTINUOUS_SEGMENT, segment?.size ?: 0)
     }
+
+    private fun defaultCue(acceptedCount: Int, analyzedCount: Int) =
+        PaceEstimate(10_000, 4_500, 5_500, false, acceptedCount, null, null,
+            analyzedCount, PaceEstimateMode.DEFAULT_NO_PEAK, PaceEstimateConfidence.DEFAULT)
 
     private data class Peak(val cycleMillis: Long, val correlation: Double)
 

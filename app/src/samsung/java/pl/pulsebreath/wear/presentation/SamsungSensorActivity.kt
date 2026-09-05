@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.*
@@ -53,10 +54,19 @@ class SamsungSensorActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        sessionViewModel.diagnostics.record("activity onCreate")
         permissionGranted = checkSelfPermission(requiredHeartRatePermission()) == PackageManager.PERMISSION_GRANTED
         setContent {
             // Observable revision publishes the serialized owner's current snapshot.
             @Suppress("UNUSED_VARIABLE") val currentRevision = sessionViewModel.revision
+            val composeRoot = LocalView.current
+            DisposableEffect(composeRoot) {
+                // Some Wear builds ignore the window flag alone and sleep after their
+                // short interaction timeout unless the composed root also requests it.
+                composeRoot.keepScreenOn = true
+                onDispose { composeRoot.keepScreenOn = false }
+            }
             var historySelectedId by remember { mutableStateOf<String?>(null) }
             var confirmClearHistory by remember { mutableStateOf(false) }
             val haptics = remember { SessionHaptics(applicationContext) }
@@ -68,12 +78,17 @@ class SamsungSensorActivity : ComponentActivity() {
                     BreathingPhase.EXHALE -> haptics.exhale()
                     null -> Unit
                 }
-                if (session.stage != GuidedStage.RUNNING && session.stage != GuidedStage.READY) haptics.cancel()
+            }
+            LaunchedEffect(sessionViewModel.completionHapticSequence) {
+                if (sessionViewModel.completionHapticSequence > 0L) {
+                    if (sessionViewModel.lastCompletionFinishedSeries) haptics.seriesComplete() else haptics.sessionComplete()
+                }
             }
             DisposableEffect(Unit) { onDispose { haptics.cancel() } }
             LaunchedEffect(session.stage) {
                 while (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING || session.stage == GuidedStage.READY) {
                     session.tick()
+                    sessionViewModel.startNextSeriesSessionWhenReady()
                     delay(50)
                 }
             }
@@ -112,28 +127,30 @@ class SamsungSensorActivity : ComponentActivity() {
                                     Button(onClick = sessionViewModel::beginCalibration) { Text("Sense my pace") }
                                 }
                                 GuidedStage.CALIBRATING -> {
+                                    SeriesProgress(sessionViewModel, "Calibrating")
                                     Text("Sensing attempt ${session.calibrationAttempt}/${GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS}. Breathe naturally.", textAlign = TextAlign.Center)
                                     session.estimate?.takeIf { it.usedFallback }?.let {
                                         Text("Last attempt: ${it.fallbackReason?.name ?: "fallback"}", textAlign = TextAlign.Center)
                                     }
                                     Text(session.status.message, textAlign = TextAlign.Center)
-                                    Button(onClick = session::stop) { Text("Cancel") }
+                                    Button(onClick = sessionViewModel::cancelSession) { Text("Cancel series") }
                                 }
                                 GuidedStage.READY -> {
+                                    SeriesProgress(sessionViewModel, "Pace ready")
                                     PaceDetails(session)
                                     if (session.estimate?.usedFallback == true) {
                                         Text("No usable pace after ${session.calibrationAttempt} attempts. Signal coverage was too weak; adjust fit and retry.", textAlign = TextAlign.Center)
                                         Button(onClick = session::retryCalibration) { Text("Try again") }
-                                        Button(onClick = session::stop) { Text("Cancel") }
+                                        Button(onClick = sessionViewModel::cancelSession) { Text("Cancel") }
                                     } else {
-                                        if (sessionViewModel.stressPreDecision == null) {
+                                        if (sessionViewModel.series.showPreCheckIn && sessionViewModel.stressPreDecision == null) {
                                             StressCheckInContent(
                                                 title = "Stress before breathing",
                                                 onSave = sessionViewModel::saveStressPre,
                                                 onSkip = sessionViewModel::skipStressPre,
                                             )
                                         }
-                                        Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
+                                        Text("Pace ready: ${String.format(Locale.US, "%.2f", session.config.cycleDurationMillis / 1_000.0)} s / breath")
                                         Text("READY prep: ${session.readyVisibleMillis / 1000.0} / 20.0 s", textAlign = TextAlign.Center)
                                         Text("Session length", textAlign = TextAlign.Center)
                                         listOf(120L, 300L, 600L, 900L, 1_800L).forEach { seconds ->
@@ -144,13 +161,30 @@ class SamsungSensorActivity : ComponentActivity() {
                                             }
                                         }
                                         Text("Selected: ${formatDuration(session.config.sessionDurationMillis)}", textAlign = TextAlign.Center)
-                                        Button(onClick = session::start, enabled = session.canStart && sessionViewModel.stressPreDecision != null) {
+                                        Text("Sessions", textAlign = TextAlign.Center)
+                                        listOf(1, 3, 5, 7, 11).forEach { count ->
+                                            val selected = sessionViewModel.series.selectedCount == count
+                                            Button(onClick = { sessionViewModel.selectSessionSeries(count) }, enabled = !selected) {
+                                                Text(if (count == 1) "Single session" else "$count full sessions")
+                                            }
+                                        }
+                                        Text(if (sessionViewModel.series.selectedCount == 1) "No series selected" else "Series: ${sessionViewModel.series.selectedCount} sessions", textAlign = TextAlign.Center)
+                                        Text("Dynamic tuning: ${if (session.dynamicTuningEnabled) "On" else "Off"}", textAlign = TextAlign.Center)
+                                        Button(onClick = { sessionViewModel.setDynamicTuningEnabled(!session.dynamicTuningEnabled) }) {
+                                            Text(if (session.dynamicTuningEnabled) "Turn dynamic tuning off" else "Turn dynamic tuning on")
+                                        }
+                                        Text("Dynamic tuning threshold: ${if (session.dynamicTuningAllowsWeak) "WEAK+" else "HIGH only"}", textAlign = TextAlign.Center)
+                                        Button(onClick = { sessionViewModel.setDynamicTuningAllowsWeak(!session.dynamicTuningAllowsWeak) }) {
+                                            Text(if (session.dynamicTuningAllowsWeak) "Use HIGH only" else "Allow WEAK+")
+                                        }
+                                        Button(onClick = sessionViewModel::startSession, enabled = session.canStart) {
                                             Text(if (session.canStart) "Start breathing" else "Start in ${((GuidedSessionDurations.READY_PREPARATION_MILLIS - session.readyVisibleMillis).coerceAtLeast(0L) + 999L) / 1000L}s")
                                         }
-                                        Button(onClick = session::stop) { Text("Cancel") }
+                                        Button(onClick = sessionViewModel::cancelSession) { Text("Cancel series") }
                                     }
                                 }
                                 GuidedStage.RUNNING, GuidedStage.PAUSED -> {
+                                    SeriesProgress(sessionViewModel, if (session.stage == GuidedStage.PAUSED) "Paused" else "Breathing")
                                     Text(if (session.stage == GuidedStage.PAUSED) {
                                         if (session.pauseReason == pl.pulsebreath.wear.session.GuidedPauseReason.BACKGROUND)
                                             "Paused: background"
@@ -161,11 +195,14 @@ class SamsungSensorActivity : ComponentActivity() {
                                             .background(MaterialTheme.colorScheme.primary, CircleShape))
                                     }
                                     Text("${session.cue.remainingMillis / 1000} s left")
+                                    PaceDuringSession(session)
+                                    Text("Dynamic tuning: ${if (session.dynamicTuningEnabled) "On — ${if (session.dynamicTuningAllowsWeak) "WEAK+" else "HIGH only"}" else "Off"}", textAlign = TextAlign.Center)
+                                    session.pendingDynamicEstimate?.let { Text("New pace will apply at the next cycle boundary", textAlign = TextAlign.Center) }
                                     Text(session.status.message, textAlign = TextAlign.Center)
                                     Button(onClick = {
-                                        if (session.stage == GuidedStage.RUNNING) session.pause() else session.start()
+                                        if (session.stage == GuidedStage.RUNNING) session.pause() else sessionViewModel.startSession()
                                     }) { Text(if (session.stage == GuidedStage.RUNNING) "Pause" else "Resume") }
-                                    Button(onClick = session::stop) { Text("Stop") }
+                                    Button(onClick = sessionViewModel::cancelSession) { Text("Stop series") }
                                 }
                                 GuidedStage.SUMMARY -> {
                                     Text("Session summary")
@@ -219,14 +256,23 @@ class SamsungSensorActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        sessionViewModel.diagnostics.record("activity onStop stage=${session.stage}")
         session.onBackground()
         super.onStop()
     }
 
     override fun onStart() {
         super.onStart()
+        sessionViewModel.diagnostics.record("activity onStart stage=${session.stage}")
         session.onForeground()
     }
+}
+
+@Composable
+private fun SeriesProgress(viewModel: SamsungSessionViewModel, stage: String) {
+    val series = viewModel.series
+    val label = if (series.selectedCount == 1) "Session" else "Session ${series.currentSessionNumber}/${series.selectedCount}"
+    Text("$label · $stage", textAlign = TextAlign.Center)
 }
 
 @Composable
@@ -273,7 +319,9 @@ private fun StressCheckInContent(
     Picker(
         state = pickerState,
         contentDescription = { title },
-        modifier = Modifier.fillMaxWidth(),
+        // Picker uses a ScalingLazyColumn internally. The outer session screen
+        // scrolls, so it must receive an explicit bounded height on Wear OS.
+        modifier = Modifier.fillMaxWidth().height(96.dp),
     ) { option ->
         Text(stressLabels[option], textAlign = TextAlign.Center)
     }
@@ -286,6 +334,15 @@ private fun StressCheckInContent(
 private fun formatDuration(millis: Long): String {
     val seconds = millis / 1_000L
     return if (seconds < 300L) "$seconds seconds" else "${seconds / 60} minutes"
+}
+
+@Composable
+private fun PaceDuringSession(session: GuidedSessionCoordinator) {
+    val cycleSeconds = session.config.cycleDurationMillis / 1_000.0
+    val breathsPerMinute = 60_000.0 / session.config.cycleDurationMillis
+    Text("Tempo: ${String.format(Locale.US, "%.2f", cycleSeconds)} s/cykl", textAlign = TextAlign.Center)
+    Text("Wdech ${String.format(Locale.US, "%.2f", session.config.inhaleDurationMillis / 1_000.0)} s · wydech ${String.format(Locale.US, "%.2f", session.config.exhaleDurationMillis / 1_000.0)} s", textAlign = TextAlign.Center)
+    Text("${String.format(Locale.US, "%.1f", breathsPerMinute)} cyklu/min", textAlign = TextAlign.Center)
 }
 
 @Composable

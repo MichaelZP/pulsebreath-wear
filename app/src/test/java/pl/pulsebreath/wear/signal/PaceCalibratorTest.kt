@@ -20,6 +20,20 @@ class PaceCalibratorTest {
         return beats
     }
 
+    private fun weakOscillation(period: Long = 10_000): List<TimedIbi> {
+        val random = Random(38)
+        val beats = mutableListOf<TimedIbi>()
+        var time = 0L
+        while (time < PaceCalibrator.CALIBRATION_FRAME_MILLIS) {
+            val ibi = (800 + 32 * sin(2 * PI * time / period) + random.nextInt(-45, 46)).roundToLong()
+            time += ibi
+            if (time <= PaceCalibrator.CALIBRATION_FRAME_MILLIS) {
+                beats.add(TimedIbi(time, ibi, true, beats.size, false))
+            }
+        }
+        return beats
+    }
+
     @Test fun recoversTenSecondOscillationWithAndWithoutTrend() {
         for (trend in listOf(0.0, 2.0)) {
             val estimate = PaceCalibrator.estimate(oscillation(trend = trend))
@@ -127,19 +141,47 @@ class PaceCalibratorTest {
     }
 
     @Test fun moderatePeriodicEvidenceUsesAWeakPeak() {
-        val random = Random(38)
-        val beats = mutableListOf<TimedIbi>()
-        var time = 0L
-        while (time < 35_000) {
-            val ibi = (800 + 32 * sin(2 * PI * time / 10_000) + random.nextInt(-45, 46)).roundToLong()
-            time += ibi
-            if (time <= 35_000) beats.add(TimedIbi(time, ibi, true, beats.size, false))
-        }
-        val estimate = PaceCalibrator.estimate(beats)
+        val estimate = PaceCalibrator.estimate(weakOscillation())
         assertFalse(estimate.toString(), estimate.usedFallback)
         assertEquals(PaceEstimateMode.CONTINUOUS, estimate.estimateMode)
         assertEquals(PaceEstimateConfidence.WEAK, estimate.confidence)
         assertNotNull(estimate.peakCorrelation)
         assertTrue(estimate.peakCorrelation!! >= 0.35)
+    }
+
+    @Test fun calibrationAcceptsWeakEvidenceOnlyWhenTwoIndependentFramesAgree() {
+        val first = weakOscillation()
+        val second = first.map { beat ->
+            beat.copy(endMillis = beat.endMillis!! + PaceCalibrator.CALIBRATION_FRAME_MILLIS)
+        }
+
+        val estimate = PaceCalibrator.estimateCalibration(
+            first + second,
+            PaceCalibrator.CALIBRATION_DURATION_MILLIS,
+        )
+        val firstFrame = PaceCalibrator.estimate(first)
+        val secondFrame = PaceCalibrator.estimate(second)
+
+        assertFalse(estimate.toString(), estimate.usedFallback)
+        assertEquals(PaceEstimateMode.CONFIRMED_WEAK, estimate.estimateMode)
+        assertEquals(PaceEstimateConfidence.WEAK, estimate.confidence)
+        assertTrue(abs(firstFrame.cycleMillis - secondFrame.cycleMillis) <= PaceCalibrator.WEAK_FRAME_AGREEMENT_MILLIS)
+        assertEquals((firstFrame.cycleMillis + secondFrame.cycleMillis) / 2L, estimate.cycleMillis)
+    }
+
+    @Test fun calibrationRejectsWeakEvidenceWhenIndependentFramesDisagree() {
+        val first = weakOscillation(10_000)
+        val second = weakOscillation(12_000).map { beat ->
+            beat.copy(endMillis = beat.endMillis!! + PaceCalibrator.CALIBRATION_FRAME_MILLIS)
+        }
+
+        val estimate = PaceCalibrator.estimateCalibration(
+            first + second,
+            PaceCalibrator.CALIBRATION_DURATION_MILLIS,
+        )
+
+        assertFalse(estimate.usedFallback)
+        assertEquals(PaceEstimateMode.DEFAULT_NO_PEAK, estimate.estimateMode)
+        assertEquals(PaceEstimateConfidence.DEFAULT, estimate.confidence)
     }
 }

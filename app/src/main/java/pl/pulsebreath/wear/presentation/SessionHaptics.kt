@@ -12,6 +12,8 @@ internal class SessionHaptics(context: Context) {
     fun ready() = vibrate(longArrayOf(0, 55))
     fun inhale() = vibrate(longArrayOf(0, 25, 45, 25))
     fun exhale() = vibrate(longArrayOf(0, 85))
+    fun sessionComplete() = vibrate(longArrayOf(0, 100, 90, 100))
+    fun seriesComplete() = vibrate(longArrayOf(0, 220, 90, 220, 90, 320))
     fun cancel() { vibrator?.cancel() }
 
     private fun vibrate(pattern: LongArray) {

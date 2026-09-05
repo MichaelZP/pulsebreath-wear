@@ -41,12 +41,14 @@ internal data class BreathingSessionState(
     val status: BreathingSessionStatus = BreathingSessionStatus.IDLE,
     val accumulatedActiveMillis: Long = 0L,
     val runningSinceMillis: Long? = null,
+    val phaseAnchorActiveMillis: Long = 0L,
 ) {
     fun start(nowMillis: Long): BreathingSessionState =
         copy(
             status = BreathingSessionStatus.RUNNING,
             accumulatedActiveMillis = 0L,
             runningSinceMillis = nowMillis,
+            phaseAnchorActiveMillis = 0L,
         )
 
     fun pause(
@@ -89,6 +91,10 @@ internal data class BreathingSessionState(
 
     fun reset(): BreathingSessionState = BreathingSessionState()
 
+    /** Starts the next cue cycle without changing accumulated session duration. */
+    fun reanchorPhase(nowMillis: Long, config: BreathingSessionConfig): BreathingSessionState =
+        copy(phaseAnchorActiveMillis = activeElapsedAt(nowMillis, config))
+
     fun advance(
         nowMillis: Long,
         config: BreathingSessionConfig,
@@ -113,7 +119,7 @@ internal data class BreathingSessionState(
     ): BreathingSessionSnapshot {
         val elapsedMillis = activeElapsedAt(nowMillis, config)
         val phaseReferenceMillis =
-            elapsedMillis
+            (elapsedMillis - phaseAnchorActiveMillis).coerceAtLeast(0L)
                 .coerceAtMost(config.sessionDurationMillis - 1L)
                 .coerceAtLeast(0L)
         val positionInCycle = phaseReferenceMillis % config.cycleDurationMillis
