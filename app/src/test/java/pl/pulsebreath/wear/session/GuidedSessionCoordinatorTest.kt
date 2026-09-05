@@ -31,7 +31,12 @@ class GuidedSessionCoordinatorTest {
             now = 35_000L
             owner.tick()
         }
-        fun running() { ready(); owner.start() }
+        fun running() {
+            ready()
+            advance(55_000L)
+            owner.start()
+        }
+        fun foreground() { owner.onForeground() }
         fun advance(to: Long) {
             while (now < to) { now = minOf(to, now + 50); owner.tick() }
         }
@@ -102,9 +107,33 @@ class GuidedSessionCoordinatorTest {
         assertEquals(GuidedStage.READY, h.owner.stage)
         h.owner.setSessionDuration(300_000)
         assertEquals(300_000, h.owner.config.sessionDurationMillis)
+        h.advance(55_000L)
         h.owner.start()
         h.owner.setSessionDuration(600_000)
         assertEquals(300_000, h.owner.config.sessionDurationMillis)
+    }
+
+    @Test fun readyRequiresTwentyThousandMillisOfVisibleForegroundTimeBeforeStart() {
+        val h = Harness()
+        h.ready()
+        h.advance(54_999L)
+        assertFalse(h.owner.canStart)
+        h.advance(55_000L)
+        assertTrue(h.owner.canStart)
+    }
+
+    @Test fun backgroundPausesReadyCountdown() {
+        val h = Harness()
+        h.ready()
+        h.advance(45_000L)
+        h.owner.onBackground()
+        h.advance(65_000L)
+        assertFalse(h.owner.canStart)
+        h.foreground()
+        h.advance(74_999L)
+        assertFalse(h.owner.canStart)
+        h.advance(75_000L)
+        assertTrue(h.owner.canStart)
     }
     @Test fun noDataCalibrationRetriesExactlyTenTimesThenStops() {
         val h = Harness()
@@ -149,6 +178,18 @@ class GuidedSessionCoordinatorTest {
         assertEquals(previousSources.size + 1, h.sources.size)
     }
 
+    @Test fun durationSelectionSurvivesRecalibration() {
+        val h = Harness()
+        h.ready()
+        h.owner.setSessionDuration(900_000)
+        h.owner.retryCalibration()
+        h.emitSuccessfulCalibrationAttempt()
+        h.now = 70_000L
+        h.owner.tick()
+        assertEquals(GuidedStage.READY, h.owner.stage)
+        assertEquals(900_000L, h.owner.config.sessionDurationMillis)
+    }
+
     @Test fun calibrationMapsLiveEstimateAndRetainsTrailingBreaks() {
         val h = Harness()
         h.owner.calibrate()
@@ -176,11 +217,11 @@ class GuidedSessionCoordinatorTest {
     @Test fun batchUsesIndividualHistoricalPhasesAndUnchangedPearson() {
         val h = Harness()
         h.running()
-        h.advance(47_000)
+        h.advance(67_000)
         val values = List(12) { if (it % 2 == 0) 900L else 1100L }
         h.emit(values)
         val sample = SensorSample(h.now, 60.0, values, SensorSignalQuality.GOOD, SensorSourceType.SAMSUNG)
-        val state = BreathingSessionState().start(35_000)
+        val state = BreathingSessionState().start(55_000)
         val expected = expandBatch(h.now, sample).intervals.map { beat ->
             val cue = state.snapshot(beat.endMillis!!, h.owner.config)
             AlignmentObservation(sample.copy(monotonicTimestampMillis = beat.endMillis,
@@ -197,7 +238,7 @@ class GuidedSessionCoordinatorTest {
         val h = Harness()
         h.running()
         repeat(4) { h.advance(h.now + 1000); h.emit(emptyList()) }
-        h.advance(51_000)
+        h.advance(61_000)
         h.emit(List(12) { if (it % 2 == 0) 900L else 1100L })
         assertEquals(20.0, h.owner.hrv.ibiEventCoveragePercent, 0.0)
         assertNull(h.owner.alignment.score)
@@ -206,7 +247,7 @@ class GuidedSessionCoordinatorTest {
     @Test fun pauseResumeRejectsOldCallbacksAndBeatsAndKeepsPace() {
         val h = Harness()
         h.running()
-        h.advance(40_000)
+        h.advance(60_000)
         h.emit(listOf(1000))
         val old = h.sources.last()
         val config = h.owner.config
@@ -231,18 +272,18 @@ class GuidedSessionCoordinatorTest {
     @Test fun rejectionAndStaleWindowCannotKeepAnOldScore() {
         val h = Harness()
         h.running()
-        h.advance(47_000)
+        h.advance(h.now + 12_000)
         val values = List(12) { if (it % 2 == 0) 900L else 1100L }
         h.emit(values)
         assertNotNull(h.owner.alignment.score)
-        h.advance(48_000)
+        h.advance(h.now + 1_000)
         h.emit(listOf(1000), setOf(1), 1)
         assertNull(h.owner.alignment.score)
         assertEquals(1, h.owner.hrv.rejectedIbiCount)
-        h.advance(60_000)
+        h.advance(h.now + 12_000)
         h.emit(values)
         assertNotNull(h.owner.alignment.score)
-        h.advance(120_050)
+        h.advance(h.now + 60_050)
         assertNull(h.owner.alignment.score)
         assertEquals(0, h.owner.hrv.sampleEventCount)
     }
@@ -294,6 +335,7 @@ class GuidedSessionCoordinatorTest {
         h.owner.stop()
         assertTrue(h.sources.last().stopped)
         h.ready()
+        h.advance(55_000)
         h.owner.start()
         h.sources.last().status(SensorStreamStatus(SensorStreamState.ERROR, "Disconnected"))
         assertEquals(GuidedStage.PAUSED, h.owner.stage)
@@ -309,7 +351,7 @@ class GuidedSessionCoordinatorTest {
     @Test fun backgroundPausesRunningSessionAndRequiresExplicitResume() {
         val h = Harness()
         h.running()
-        h.advance(40_000)
+        h.advance(60_000)
         h.emit(listOf(1000))
         val backgroundSource = h.sources.last()
 
@@ -357,6 +399,7 @@ class GuidedSessionCoordinatorTest {
     @Test fun newCalibrationAfterCompletedSessionStartsWithCleanStateAndCue() {
         val h = Harness()
         h.ready()
+        h.advance(55_000)
         h.owner.start()
         h.now += h.owner.config.sessionDurationMillis
         h.owner.tick()

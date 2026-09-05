@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import pl.pulsebreath.wear.presentation.theme.PulseBreathWearTheme
 import pl.pulsebreath.wear.sensor.SensorStreamState
 import pl.pulsebreath.wear.sensor.TimingDiagnostics
+import pl.pulsebreath.wear.session.GuidedSessionDurations
 import pl.pulsebreath.wear.session.GuidedSessionCoordinator
 import pl.pulsebreath.wear.session.GuidedStage
 import pl.pulsebreath.wear.session.BreathingPhase
@@ -65,7 +66,7 @@ class SamsungSensorActivity : ComponentActivity() {
             }
             DisposableEffect(Unit) { onDispose { haptics.cancel() } }
             LaunchedEffect(session.stage) {
-                while (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING) {
+                while (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING || session.stage == GuidedStage.READY) {
                     session.tick()
                     delay(50)
                 }
@@ -109,16 +110,19 @@ class SamsungSensorActivity : ComponentActivity() {
                                         Button(onClick = session::stop) { Text("Cancel") }
                                     } else {
                                         Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
+                                        Text("READY prep: ${session.readyVisibleMillis / 1000.0} / 20.0 s", textAlign = TextAlign.Center)
                                         Text("Session length", textAlign = TextAlign.Center)
                                         listOf(120L, 300L, 600L, 900L, 1_800L).forEach { seconds ->
                                             val selected = session.config.sessionDurationMillis == seconds * 1_000L
-                                            Button(onClick = { session.setSessionDuration(seconds * 1_000L) },
+                                            Button(onClick = { sessionViewModel.selectSessionDuration(seconds * 1_000L) },
                                                 enabled = !selected) {
                                                 Text(if (seconds == 120L) "120 seconds" else "${seconds / 60} minutes")
                                             }
                                         }
                                         Text("Selected: ${formatDuration(session.config.sessionDurationMillis)}", textAlign = TextAlign.Center)
-                                        Button(onClick = session::start) { Text("Start breathing") }
+                                        Button(onClick = session::start, enabled = session.canStart) {
+                                            Text(if (session.canStart) "Start breathing" else "Start in ${((GuidedSessionDurations.READY_PREPARATION_MILLIS - session.readyVisibleMillis).coerceAtLeast(0L) + 999L) / 1000L}s")
+                                        }
                                         Button(onClick = session::stop) { Text("Cancel") }
                                     }
                                 }
@@ -169,6 +173,11 @@ class SamsungSensorActivity : ComponentActivity() {
     override fun onStop() {
         session.onBackground()
         super.onStop()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        session.onForeground()
     }
 }
 

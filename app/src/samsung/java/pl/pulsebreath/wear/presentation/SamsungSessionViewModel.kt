@@ -20,7 +20,14 @@ internal class SamsungSessionViewModel(application: Application) : AndroidViewMo
         clock = android.os.SystemClock::elapsedRealtime,
         dispatch = { action -> mainHandler.post(action) },
         changed = { revision++ },
+        initialSessionDurationMillis = SessionDurationPreferences.loadLastSelectedDurationMillis(application.applicationContext),
     )
+
+    fun selectSessionDuration(durationMillis: Long) {
+        if (session.setSessionDuration(durationMillis)) {
+            SessionDurationPreferences.saveLastSelectedDurationMillis(getApplication(), durationMillis)
+        }
+    }
 
     override fun onCleared() {
         session.dispose()

@@ -12,6 +12,7 @@ internal class GuidedSessionCoordinator(
     private val clock: () -> Long,
     private val dispatch: (() -> Unit) -> Unit,
     private val changed: () -> Unit = {},
+    initialSessionDurationMillis: Long = 120_000L,
 ) {
     companion object {
         const val MAX_CALIBRATION_ATTEMPTS = 10
@@ -20,7 +21,7 @@ internal class GuidedSessionCoordinator(
     var stage = GuidedStage.IDLE; private set
     var calibrationAttempt = 0; private set
     var estimate: PaceEstimate? = null; private set
-    var config = BreathingSessionConfig(); private set
+    var config = BreathingSessionConfig(sessionDurationMillis = initialSessionDurationMillis); private set
     var cue = BreathingSessionState().snapshot(0, config); private set
     var pauseReason: GuidedPauseReason? = null; private set
     var notice: String? = null; private set
@@ -40,10 +41,24 @@ internal class GuidedSessionCoordinator(
     private var lastPhaseTime: Long? = null
     private var lastBeatTime: Long? = null
     private var pendingBreak = true
+    private var readyForegroundSinceMillis: Long? = null
+    private var readyVisibleAccumulatedMillis = 0L
     private val phases = PhaseHistory()
     private val calibration = mutableListOf<TimedIbi>()
     private val samples = mutableListOf<SensorSample>()
     private val observations = mutableListOf<AlignmentObservation>()
+
+    val readyVisibleMillis: Long
+        get() {
+            val foregroundElapsed =
+                readyForegroundSinceMillis?.let { (clock() - it).coerceAtLeast(0L) } ?: 0L
+            return readyVisibleAccumulatedMillis + foregroundElapsed
+        }
+
+    val canStart: Boolean
+        get() = stage == GuidedStage.READY &&
+            estimate?.usedFallback != true &&
+            readyVisibleMillis >= GuidedSessionDurations.READY_PREPARATION_MILLIS
 
     fun calibrate() {
         if (stage != GuidedStage.IDLE && stage != GuidedStage.SUMMARY) return
@@ -61,9 +76,17 @@ internal class GuidedSessionCoordinator(
 
     fun onBackground() {
         when (stage) {
+            GuidedStage.READY -> pauseReadyPreparation()
             GuidedStage.RUNNING -> pause(GuidedPauseReason.BACKGROUND)
             GuidedStage.CALIBRATING -> interruptCalibration()
             else -> Unit
+        }
+    }
+
+    fun onForeground() {
+        if (stage == GuidedStage.READY && estimate?.usedFallback != true && readyForegroundSinceMillis == null) {
+            readyForegroundSinceMillis = clock()
+            changed()
         }
     }
 
@@ -72,14 +95,18 @@ internal class GuidedSessionCoordinator(
         if (stage == GuidedStage.CALIBRATING &&
             now - calibrationStart >= PaceCalibrator.CALIBRATION_DURATION_MILLIS) {
             estimate = PaceCalibrator.estimate(calibration.toList())
-            config = BreathingSessionConfig(estimate!!.inhaleMillis, estimate!!.exhaleMillis)
+            config = BreathingSessionConfig(
+                estimate!!.inhaleMillis,
+                estimate!!.exhaleMillis,
+                config.sessionDurationMillis,
+            )
             calibration.clear()
             unsubscribe()
             if (estimate!!.usedFallback && calibrationAttempt < MAX_CALIBRATION_ATTEMPTS) {
                 calibrationAttempt++
                 startCalibrationAttempt()
             } else {
-                stage = GuidedStage.READY
+                enterReadyState(now)
             }
         }
         if (stage == GuidedStage.RUNNING) {
@@ -99,21 +126,26 @@ internal class GuidedSessionCoordinator(
     }
 
     fun start() {
+        if (stage == GuidedStage.READY && !canStart) return
         if ((stage != GuidedStage.READY && stage != GuidedStage.PAUSED) || estimate?.usedFallback == true) return
         clearWindow()
         epochStart = clock()
         state = if (stage == GuidedStage.PAUSED) state.resume(epochStart) else state.start(epochStart)
         pauseReason = null
+        clearReadyPreparation()
         stage = GuidedStage.RUNNING
         tick()
         subscribe()
     }
 
     /** READY-only selection: pace timings stay fixed while the run length is chosen. */
-    fun setSessionDuration(durationMillis: Long) {
-        if (stage != GuidedStage.READY || estimate?.usedFallback == true) return
+    fun setSessionDuration(durationMillis: Long): Boolean {
+        if (stage != GuidedStage.READY || estimate?.usedFallback == true || !GuidedSessionDurations.isAllowedSessionDuration(durationMillis)) {
+            return false
+        }
         config = config.copy(sessionDurationMillis = durationMillis)
         changed()
+        return true
     }
 
     fun pause(reason: GuidedPauseReason = GuidedPauseReason.USER) {
@@ -143,6 +175,7 @@ internal class GuidedSessionCoordinator(
         lastBeatTime = null
         pendingBreak = true
         latestSample = null
+        clearReadyPreparation()
         stage = GuidedStage.SUMMARY
         changed()
     }
@@ -205,7 +238,7 @@ internal class GuidedSessionCoordinator(
         notice = null
         pauseReason = null
         if (resetPace) {
-            config = BreathingSessionConfig()
+            config = BreathingSessionConfig(sessionDurationMillis = config.sessionDurationMillis)
         }
         state = state.reset()
         cue = state.snapshot(clock(), config)
@@ -216,6 +249,26 @@ internal class GuidedSessionCoordinator(
         bpmCount = 0
         calibrationAttempt = 1
         startCalibrationAttempt()
+    }
+
+    private fun enterReadyState(now: Long) {
+        clearReadyPreparation()
+        stage = GuidedStage.READY
+        if (estimate?.usedFallback != true) {
+            readyForegroundSinceMillis = now
+        }
+    }
+
+    private fun pauseReadyPreparation() {
+        val startedAt = readyForegroundSinceMillis ?: return
+        readyVisibleAccumulatedMillis += (clock() - startedAt).coerceAtLeast(0L)
+        readyForegroundSinceMillis = null
+        changed()
+    }
+
+    private fun clearReadyPreparation() {
+        readyForegroundSinceMillis = null
+        readyVisibleAccumulatedMillis = 0L
     }
 
     private fun unsubscribe() {
