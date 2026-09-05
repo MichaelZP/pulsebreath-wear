@@ -183,13 +183,11 @@ class SamsungSensorActivity : ComponentActivity() {
                 }
             }
             if (confirmClearHistory) {
-                AlertDialog(
-                    onDismissRequest = { confirmClearHistory = false },
-                    title = { Text("Clear history?") },
-                    text = { Text("This removes all locally stored session summaries.") },
-                    confirmButton = { Button(onClick = { sessionViewModel.clearHistory(); confirmClearHistory = false }) { Text("Clear") } },
-                    dismissButton = { Button(onClick = { confirmClearHistory = false }) { Text("Cancel") } },
-                )
+                Text("Clear all locally stored session summaries?", textAlign = TextAlign.Center)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { sessionViewModel.clearHistory(); confirmClearHistory = false }) { Text("Clear") }
+                    Button(onClick = { confirmClearHistory = false }) { Text("Cancel") }
+                }
             }
         }
     }
