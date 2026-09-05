@@ -14,7 +14,7 @@ Develop a standalone Wear OS breathing trainer for Samsung Galaxy Watch in small
 | Project directory | `C:\Users\user\Documents\Codex\pulsebreath-wear` | Confirmed |
 | App name | `PulseBreath Wear` | Working name |
 | Repository name | `pulsebreath-wear` | Working name; no remote repository authorized |
-| Application ID | `pl.pulsebreath.wear` | Confirmed before Samsung integration |
+| Application ID | `dev.prylski.breath` | Samsung; Demo adds `.demo` |
 | Source-code license | Apache-2.0 | Confirmed; add the license file in the appropriate repository milestone |
 | GitHub visibility | Private proposed | Not yet authorized; no GitHub operation may be performed |
 | Product category | Wellness/research | Confirmed; not diagnostic or medical software |

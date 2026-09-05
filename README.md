@@ -49,7 +49,7 @@ select it as the deployment target and run `app`. Alternatively:
 ```powershell
 adb devices
 adb -s emulator-5554 install -r app/build/outputs/apk/demo/debug/app-demo-debug.apk
-adb -s emulator-5554 shell am start -n pl.pulsebreath.wear.demo/pl.pulsebreath.wear.presentation.MainActivity
+adb -s emulator-5554 shell am start -n dev.prylski.breath.demo/pl.pulsebreath.wear.presentation.MainActivity
 ```
 
 Replace the example serial with the intended device from `adb devices`.
@@ -68,7 +68,7 @@ Use a compatible physical watch, grant heart-rate permission, and follow the
 ```powershell
 .\gradlew.bat --no-daemon testSamsungDebugUnitTest lintSamsungDebug assembleSamsungDebug
 adb -s WATCH_SERIAL install --no-streaming -r app/build/outputs/apk/samsung/debug/app-samsung-debug.apk
-adb -s WATCH_SERIAL shell am start -n pl.pulsebreath.wear/pl.pulsebreath.wear.presentation.SamsungSensorActivity
+adb -s WATCH_SERIAL shell am start -n dev.prylski.breath/pl.pulsebreath.wear.presentation.SamsungSensorActivity
 ```
 
 `WATCH_SERIAL` is a placeholder: do not paste it literally. Open **PulseBreath Sensor**

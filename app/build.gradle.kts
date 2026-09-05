@@ -10,7 +10,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "pl.pulsebreath.wear"
+        applicationId = "dev.prylski.breath"
         minSdk = 30
         targetSdk = 37
         versionCode = 1

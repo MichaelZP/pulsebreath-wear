@@ -13,10 +13,10 @@ The feature is wellness and research software. It is not intended for diagnosis 
 The confirmed application ID is:
 
 ```text
-pl.pulsebreath.wear
+dev.prylski.breath
 ```
 
-The `demo` flavor adds `.demo`, so its installed package is `pl.pulsebreath.wear.demo`. The `samsung` flavor retains the final application ID because Samsung app verification later binds the package name and signing certificate SHA-256.
+The `demo` flavor adds `.demo`, so its installed package is `dev.prylski.breath.demo`. The `samsung` flavor retains the final application ID `dev.prylski.breath` because Samsung app verification later binds the package name and signing certificate SHA-256. This application ID change does not rename the Kotlin packages or Android namespace; uninstall the old `pl.pulsebreath.wear` and `pl.pulsebreath.wear.demo` installs before sideloading these IDs.
 
 ## Local SDK setup
 
@@ -99,7 +99,7 @@ Install and open the Samsung screen, replacing `<watch-address:port>` with the c
 
 ```powershell
 adb -s <watch-address:port> install -r app\build\outputs\apk\samsung\debug\app-samsung-debug.apk
-adb -s <watch-address:port> shell am start -n pl.pulsebreath.wear/.presentation.SamsungSensorActivity
+adb -s <watch-address:port> shell am start -n dev.prylski.breath/.presentation.SamsungSensorActivity
 ```
 
 On the watch:
