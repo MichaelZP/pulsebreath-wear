@@ -306,6 +306,54 @@ class GuidedSessionCoordinatorTest {
         assertTrue(h.sources.last().stopped)
     }
 
+    @Test fun backgroundPausesRunningSessionAndRequiresExplicitResume() {
+        val h = Harness()
+        h.running()
+        h.advance(40_000)
+        h.emit(listOf(1000))
+        val backgroundSource = h.sources.last()
+
+        h.owner.onBackground()
+
+        assertEquals(GuidedStage.PAUSED, h.owner.stage)
+        assertEquals(GuidedPauseReason.BACKGROUND, h.owner.pauseReason)
+        assertTrue(backgroundSource.stopped)
+        h.now += 10_000
+        h.owner.tick()
+        assertEquals(GuidedStage.PAUSED, h.owner.stage)
+
+        h.owner.start()
+        assertEquals(GuidedStage.RUNNING, h.owner.stage)
+        assertEquals(1, h.sources.count { !it.stopped })
+        assertNull(h.owner.pauseReason)
+    }
+
+    @Test fun backgroundInterruptsCalibrationWithNoticeInsteadOfCompleting() {
+        val h = Harness()
+        h.owner.calibrate()
+        val calibrationSource = h.sources.last()
+
+        h.owner.onBackground()
+
+        assertEquals(GuidedStage.IDLE, h.owner.stage)
+        assertTrue(calibrationSource.stopped)
+        assertNotNull(h.owner.notice)
+        h.now += 35_000
+        h.owner.tick()
+        assertEquals(GuidedStage.IDLE, h.owner.stage)
+        assertNull(h.owner.estimate)
+    }
+
+    @Test fun backgroundLeavesReadySessionAvailable() {
+        val h = Harness()
+        h.ready()
+
+        h.owner.onBackground()
+
+        assertEquals(GuidedStage.READY, h.owner.stage)
+        assertNotNull(h.owner.estimate)
+    }
+
     @Test fun newCalibrationAfterCompletedSessionStartsWithCleanStateAndCue() {
         val h = Harness()
         h.ready()

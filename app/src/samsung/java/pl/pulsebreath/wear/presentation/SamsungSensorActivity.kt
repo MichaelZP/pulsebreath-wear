@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.*
 import kotlinx.coroutines.delay
 import pl.pulsebreath.wear.presentation.theme.PulseBreathWearTheme
-import pl.pulsebreath.wear.sensor.SamsungSensorDataSource
 import pl.pulsebreath.wear.sensor.SensorStreamState
 import pl.pulsebreath.wear.sensor.TimingDiagnostics
 import pl.pulsebreath.wear.session.GuidedSessionCoordinator
@@ -35,8 +35,9 @@ internal fun requiredHeartRatePermission(): String =
     if (Build.VERSION.SDK_INT >= 36) HealthPermissions.READ_HEART_RATE else Manifest.permission.BODY_SENSORS
 
 class SamsungSensorActivity : ComponentActivity() {
-    private lateinit var session: GuidedSessionCoordinator
-    private var revision by mutableLongStateOf(0L)
+    private val sessionViewModel: SamsungSessionViewModel by viewModels()
+    private val session: GuidedSessionCoordinator
+        get() = sessionViewModel.session
     private var permissionGranted by mutableStateOf(false)
     private var permissionMessage by mutableStateOf<String?>(null)
     private val permissionRequest =
@@ -47,22 +48,10 @@ class SamsungSensorActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        session = GuidedSessionCoordinator(
-            sourceFactory = { SamsungSensorDataSource(applicationContext) },
-            clock = SystemClock::elapsedRealtime,
-            dispatch = { action -> runOnUiThread { action() } },
-            changed = {
-                revision++
-                if (session.stage == GuidedStage.RUNNING || session.stage == GuidedStage.CALIBRATING ||
-                    session.stage == GuidedStage.READY) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                } else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            },
-        )
         permissionGranted = checkSelfPermission(requiredHeartRatePermission()) == PackageManager.PERMISSION_GRANTED
         setContent {
             // Observable revision publishes the serialized owner's current snapshot.
-            @Suppress("UNUSED_VARIABLE") val currentRevision = revision
+            @Suppress("UNUSED_VARIABLE") val currentRevision = sessionViewModel.revision
             val haptics = remember { SessionHaptics(applicationContext) }
             val hapticEdges = remember { SessionHapticEdges() }
             LaunchedEffect(session.stage, session.cue.phase) {
@@ -93,6 +82,7 @@ class SamsungSensorActivity : ComponentActivity() {
                             Text("SAMSUNG — REAL SENSOR", textAlign = TextAlign.Center)
                             Text("Wellness only. Readings stay in memory for this session.", textAlign = TextAlign.Center)
                             Text(session.stage.name)
+                            session.notice?.let { Text(it, textAlign = TextAlign.Center) }
                             permissionMessage?.let { Text(it) }
                             if (!permissionGranted) {
                                 Button(onClick = { permissionRequest.launch(requiredHeartRatePermission()) }) {
@@ -133,7 +123,11 @@ class SamsungSensorActivity : ComponentActivity() {
                                     }
                                 }
                                 GuidedStage.RUNNING, GuidedStage.PAUSED -> {
-                                    Text(if (session.stage == GuidedStage.PAUSED) "Paused" else session.cue.phase.name)
+                                    Text(if (session.stage == GuidedStage.PAUSED) {
+                                        if (session.pauseReason == pl.pulsebreath.wear.session.GuidedPauseReason.BACKGROUND)
+                                            "Paused: background"
+                                        else "Paused"
+                                    } else session.cue.phase.name)
                                     Box(Modifier.size(100.dp), contentAlignment = Alignment.Center) {
                                         Box(Modifier.size((30 + 70 * session.cue.breathExpansionFraction).dp)
                                             .background(MaterialTheme.colorScheme.primary, CircleShape))
@@ -173,13 +167,8 @@ class SamsungSensorActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        session.stop()
+        session.onBackground()
         super.onStop()
-    }
-
-    override fun onDestroy() {
-        session.stop()
-        super.onDestroy()
     }
 }
 

@@ -4,6 +4,7 @@ import pl.pulsebreath.wear.sensor.*
 import pl.pulsebreath.wear.signal.*
 
 internal enum class GuidedStage { IDLE, CALIBRATING, READY, RUNNING, PAUSED, SUMMARY }
+internal enum class GuidedPauseReason { USER, BACKGROUND }
 
 /** Single serialized owner. All calls and dispatched callbacks use the UI thread/clock. */
 internal class GuidedSessionCoordinator(
@@ -21,6 +22,8 @@ internal class GuidedSessionCoordinator(
     var estimate: PaceEstimate? = null; private set
     var config = BreathingSessionConfig(); private set
     var cue = BreathingSessionState().snapshot(0, config); private set
+    var pauseReason: GuidedPauseReason? = null; private set
+    var notice: String? = null; private set
     var status = SensorStreamStatus(SensorStreamState.IDLE, "Sensor is stopped."); private set
     var hrv = HrvAnalyzer.analyze(emptyList()); private set
     var alignment = BreathingAlignmentAnalyzer.analyze(emptyList()); private set
@@ -54,6 +57,14 @@ internal class GuidedSessionCoordinator(
         unsubscribe()
         beginCalibrationAttempt(resetPace = true)
         changed()
+    }
+
+    fun onBackground() {
+        when (stage) {
+            GuidedStage.RUNNING -> pause(GuidedPauseReason.BACKGROUND)
+            GuidedStage.CALIBRATING -> interruptCalibration()
+            else -> Unit
+        }
     }
 
     fun tick() {
@@ -92,6 +103,7 @@ internal class GuidedSessionCoordinator(
         clearWindow()
         epochStart = clock()
         state = if (stage == GuidedStage.PAUSED) state.resume(epochStart) else state.start(epochStart)
+        pauseReason = null
         stage = GuidedStage.RUNNING
         tick()
         subscribe()
@@ -104,12 +116,13 @@ internal class GuidedSessionCoordinator(
         changed()
     }
 
-    fun pause() {
+    fun pause(reason: GuidedPauseReason = GuidedPauseReason.USER) {
         if (stage != GuidedStage.RUNNING) return
         tick()
         if (stage != GuidedStage.RUNNING) return
         state = state.pause(clock(), config)
         cue = state.snapshot(clock(), config)
+        pauseReason = reason
         unsubscribe()
         clearWindow()
         stage = GuidedStage.PAUSED
@@ -132,6 +145,10 @@ internal class GuidedSessionCoordinator(
         latestSample = null
         stage = GuidedStage.SUMMARY
         changed()
+    }
+
+    internal fun dispose() {
+        unsubscribe()
     }
 
     private fun subscribe() {
@@ -172,9 +189,21 @@ internal class GuidedSessionCoordinator(
         subscribe()
     }
 
+    private fun interruptCalibration() {
+        unsubscribe()
+        calibration.clear()
+        estimate = null
+        latestSample = null
+        notice = "Calibration interrupted because the app moved to the background. Start again to retry."
+        stage = GuidedStage.IDLE
+        changed()
+    }
+
     private fun beginCalibrationAttempt(resetPace: Boolean) {
         clearWindow()
         estimate = null
+        notice = null
+        pauseReason = null
         if (resetPace) {
             config = BreathingSessionConfig()
         }
