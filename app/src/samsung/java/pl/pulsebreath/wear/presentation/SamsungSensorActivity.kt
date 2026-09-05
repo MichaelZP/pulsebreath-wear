@@ -30,6 +30,8 @@ import pl.pulsebreath.wear.session.GuidedSessionDurations
 import pl.pulsebreath.wear.session.GuidedSessionCoordinator
 import pl.pulsebreath.wear.session.GuidedStage
 import pl.pulsebreath.wear.session.BreathingPhase
+import pl.pulsebreath.wear.history.SessionHistoryRecord
+import pl.pulsebreath.wear.history.SessionOutcome
 import java.util.Locale
 
 internal fun requiredHeartRatePermission(): String =
@@ -53,6 +55,8 @@ class SamsungSensorActivity : ComponentActivity() {
         setContent {
             // Observable revision publishes the serialized owner's current snapshot.
             @Suppress("UNUSED_VARIABLE") val currentRevision = sessionViewModel.revision
+            var historySelectedId by remember { mutableStateOf<String?>(null) }
+            var confirmClearHistory by remember { mutableStateOf(false) }
             val haptics = remember { SessionHaptics(applicationContext) }
             val hapticEdges = remember { SessionHapticEdges() }
             LaunchedEffect(session.stage, session.cue.phase) {
@@ -81,7 +85,18 @@ class SamsungSensorActivity : ComponentActivity() {
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text("SAMSUNG — REAL SENSOR", textAlign = TextAlign.Center)
-                            Text("Wellness only. Readings stay in memory for this session.", textAlign = TextAlign.Center)
+                            Text("Wellness only. Raw readings stay in memory; derived session history is local.", textAlign = TextAlign.Center)
+                            Button(onClick = { historySelectedId = null }) { Text("History (${sessionViewModel.history.size})") }
+                            if (historySelectedId != null) {
+                                sessionViewModel.history.firstOrNull { it.sessionId == historySelectedId }?.let { record ->
+                                    HistoryDetail(record, onBack = { historySelectedId = null }, onDelete = {
+                                        sessionViewModel.deleteHistory(record.sessionId)
+                                        historySelectedId = null
+                                    })
+                                } ?: run { historySelectedId = null }
+                            } else {
+                                HistoryList(sessionViewModel.history, onSelect = { historySelectedId = it.sessionId }, onClear = { confirmClearHistory = true })
+                            }
                             Text(session.stage.name)
                             session.notice?.let { Text(it, textAlign = TextAlign.Center) }
                             permissionMessage?.let { Text(it) }
@@ -167,6 +182,15 @@ class SamsungSensorActivity : ComponentActivity() {
                     }
                 }
             }
+            if (confirmClearHistory) {
+                AlertDialog(
+                    onDismissRequest = { confirmClearHistory = false },
+                    title = { Text("Clear history?") },
+                    text = { Text("This removes all locally stored session summaries.") },
+                    confirmButton = { Button(onClick = { sessionViewModel.clearHistory(); confirmClearHistory = false }) { Text("Clear") } },
+                    dismissButton = { Button(onClick = { confirmClearHistory = false }) { Text("Cancel") } },
+                )
+            }
         }
     }
 
@@ -179,6 +203,32 @@ class SamsungSensorActivity : ComponentActivity() {
         super.onStart()
         session.onForeground()
     }
+}
+
+@Composable
+private fun HistoryList(records: List<SessionHistoryRecord>, onSelect: (SessionHistoryRecord) -> Unit, onClear: () -> Unit) {
+    Text("Guided history", textAlign = TextAlign.Center)
+    if (records.isEmpty()) Text("No guided sessions yet.", textAlign = TextAlign.Center)
+    records.forEach { record ->
+        Button(onClick = { onSelect(record) }) {
+            Text("${record.outcome?.name ?: "ACTIVE"} · ${formatDuration(record.activeDurationMillis)}")
+        }
+    }
+    if (records.isNotEmpty()) Button(onClick = onClear) { Text("Clear all history") }
+}
+
+@Composable
+private fun HistoryDetail(record: SessionHistoryRecord, onBack: () -> Unit, onDelete: () -> Unit) {
+    Text("Session detail", textAlign = TextAlign.Center)
+    Text("Outcome: ${record.outcome?.name ?: "ACTIVE"}")
+    Text("Started: ${record.startedAtMillis}")
+    Text("Planned: ${formatDuration(record.plannedDurationMillis)}")
+    Text("Active: ${formatDuration(record.activeDurationMillis)}")
+    Text("Pace: ${record.cycleMillis?.let { "${it / 1000.0} s cycle" } ?: "unavailable"}")
+    Text("Mode: ${record.estimateMode ?: "—"}; confidence: ${record.confidence ?: "—"}")
+    Text("Fallback: ${record.usedFallback?.toString() ?: "—"}${record.fallbackReason?.let { " ($it)" } ?: ""}", textAlign = TextAlign.Center)
+    Button(onClick = onBack) { Text("Back to history") }
+    Button(onClick = onDelete) { Text("Delete this session") }
 }
 
 private fun formatDuration(millis: Long): String {
@@ -220,5 +270,5 @@ private fun TimingDiagnosticsPanel(summary: TimingDiagnostics, state: SensorStre
     Text("Receipt delta: ${summary.minReceiptDelta ?: "—"}..${summary.maxReceiptDelta ?: "—"} ms", textAlign = TextAlign.Center)
     Text(if (running) "Receipt age: ${summary.receiptAge(now) ?: "—"} ms" else "Stopped — retained summary")
     Text("Last timing block: ${summary.lastReason ?: "no data"}", textAlign = TextAlign.Center)
-    Text("Delta is not latency. No export or storage.", textAlign = TextAlign.Center)
+    Text("Delta is not latency. No raw sensor export or storage.", textAlign = TextAlign.Center)
 }

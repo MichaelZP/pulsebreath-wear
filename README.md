@@ -21,7 +21,9 @@ No public release or accuracy certification is implied by the internal version `
   not established ECG NN data; weak or discontinuous data uses the explicit
   fallback and shows its reason.
 - The sensor-free `MainActivity` trainer remains a separate mode.
-- No cloud, account, persistence or export feature. Accuracy and Polar H10 comparison remain unvalidated.
+- No cloud, account, raw sensor persistence or export feature. Samsung stores only bounded,
+  derived local guided-session summaries (up to 200), with per-record deletion and clear-all.
+  Accuracy and Polar H10 comparison remain unvalidated.
 
 ## Build locally
 

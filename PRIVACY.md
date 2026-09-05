@@ -42,16 +42,25 @@ An Android permission grant is not asserted to satisfy every legal or contractua
 
 ## Storage, retention and deletion limits
 
-The current app source holds measurements in memory rather than writing a measurement database,
-file or account history. During streaming, the Samsung screen prunes its analysis list using a
-60-second window relative to the latest arriving sample. It also retains the last sample and
-last valid IBI display. **This is not a 60-second deletion timer.**
+The current app holds raw measurements in memory rather than writing them to durable storage.
+During streaming, the Samsung screen prunes its analysis list using a 60-second window relative
+to the latest arriving sample. It also retains the last sample and last valid IBI display.
+**This is not a 60-second deletion timer.**
 
-Stopping leaves the final readings and analysis available while the activity state remains alive.
-Starting a new sensor session clears the previous in-memory sample list and displayed values
-before beginning a new reading. They are not deliberately restored from persistent storage after
-process death. No explicit secure-memory erasure or dedicated erase-results button is implemented;
-backgrounding or pressing Stop must not be described as guaranteed deletion.
+After breathing actually starts, the Samsung screen writes a bounded local JSON history file
+under `noBackupFilesDir` using atomic replacement. Each of at most 200 records contains a random
+session ID, wall-clock timestamps, planned/active duration, outcome, and derived pace estimate
+metadata (cycle, estimate mode, confidence and fallback). It does not store raw BPM, IBI values,
+alignment samples or sensor streams. A record still marked active is finalized as `INTERRUPTED`
+when the next process loads history. The user can inspect a record, delete one, or clear all
+history from the Wear screen. The sensor-free trainer is intentionally excluded from this
+real-exercise history and related statistics.
+
+Stopping leaves the final readings and analysis available while the activity state remains alive,
+and finalizes the derived local history record idempotently. Starting a new sensor session clears
+the previous in-memory sample list and displayed values before beginning a new reading. Raw sensor
+readings are not restored from persistent storage after process death. Backgrounding or pressing
+Stop must not be described as guaranteed deletion of operating-system, SDK or user-created copies.
 
 The application declares backups disabled. This does not erase screenshots, device diagnostics,
 operating-system records, information held by Samsung services, or copies a user creates elsewhere.
@@ -95,5 +104,5 @@ References checked for release planning: [Google Play User Data policy](https://
 and [Samsung app verification](https://developer.samsung.com/health/sensor/guide/app-verification.html).
 These links are not statements that the prototype meets those requirements.
 
-Any future storage, export, cloud, analytics or background-measurement feature requires a new
+Any future export, cloud, analytics or background-measurement feature requires a new
 privacy review and an update to this document before enabling that feature for users.

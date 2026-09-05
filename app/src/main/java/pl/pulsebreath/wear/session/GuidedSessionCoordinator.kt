@@ -12,6 +12,8 @@ internal class GuidedSessionCoordinator(
     private val clock: () -> Long,
     private val dispatch: (() -> Unit) -> Unit,
     private val changed: () -> Unit = {},
+    private val started: (BreathingSessionConfig, PaceEstimate) -> Unit = { _, _ -> },
+    private val finalized: (Long, BreathingSessionStatus) -> Unit = { _, _ -> },
     initialSessionDurationMillis: Long = 120_000L,
 ) {
     companion object {
@@ -47,6 +49,7 @@ internal class GuidedSessionCoordinator(
     private val calibration = mutableListOf<TimedIbi>()
     private val samples = mutableListOf<SensorSample>()
     private val observations = mutableListOf<AlignmentObservation>()
+    private var persistedRun = false
 
     val readyVisibleMillis: Long
         get() {
@@ -128,12 +131,17 @@ internal class GuidedSessionCoordinator(
     fun start() {
         if (stage == GuidedStage.READY && !canStart) return
         if ((stage != GuidedStage.READY && stage != GuidedStage.PAUSED) || estimate?.usedFallback == true) return
+        val newRun = stage == GuidedStage.READY
         clearWindow()
         epochStart = clock()
         state = if (stage == GuidedStage.PAUSED) state.resume(epochStart) else state.start(epochStart)
         pauseReason = null
         clearReadyPreparation()
         stage = GuidedStage.RUNNING
+        if (newRun) {
+            persistedRun = true
+            estimate?.let { started(config, it) }
+        }
         tick()
         subscribe()
     }
@@ -163,7 +171,9 @@ internal class GuidedSessionCoordinator(
 
     fun stop() {
         if (stage == GuidedStage.IDLE || stage == GuidedStage.SUMMARY) return
-        if (stage == GuidedStage.RUNNING) refresh(clock())
+        val wasRunning = stage == GuidedStage.RUNNING
+        if (wasRunning) refresh(clock())
+        val activeDuration = state.snapshot(clock(), config).elapsedActiveMillis
         state = state.cancel(clock(), config)
         cue = state.snapshot(clock(), config)
         unsubscribe()
@@ -177,6 +187,10 @@ internal class GuidedSessionCoordinator(
         latestSample = null
         clearReadyPreparation()
         stage = GuidedStage.SUMMARY
+        if (persistedRun) {
+            persistedRun = false
+            finalized(activeDuration, if (wasRunning && state.status == BreathingSessionStatus.COMPLETED) BreathingSessionStatus.COMPLETED else BreathingSessionStatus.CANCELLED)
+        }
         changed()
     }
 

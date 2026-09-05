@@ -56,7 +56,9 @@ RUNNING across the session (excluding calibration/pause). This is event-weighted
 not time-weighted or derived from IBI. `usedFallback` and reason are displayed;
 cancellation before calibration completes explicitly has no estimate. Stop clears
 raw samples, beats, phase history and latest live reading, retaining aggregate
-metrics and session-only timing diagnostics in memory. There is no export/storage.
+metrics and session-only timing diagnostics in memory. After breathing starts, a bounded local
+history summary stores derived pace/session metadata only; it never stores raw BPM or IBI values.
+The sensor-free trainer is excluded from this real-exercise history.
 
 ## Validation scope
 
