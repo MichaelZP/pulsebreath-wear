@@ -7,6 +7,27 @@ import java.util.Locale
 internal enum class SessionOutcome { COMPLETED, STOPPED, INTERRUPTED }
 internal enum class SessionMode { GUIDED, TRAINER }
 
+internal data class StressCheckIn(
+    val value: Int?,
+    val answered: Boolean,
+) {
+    init { require(!answered || value in 0..4) { "Answered stress must be between 0 and 4" } }
+
+    companion object {
+        fun answered(value: Int) = StressCheckIn(value, true)
+        val skipped = StressCheckIn(null, false)
+    }
+}
+
+internal object StressCheckInPairing {
+    fun summary(pre: StressCheckIn, post: StressCheckIn): String? = when {
+        pre.answered && post.answered -> "Przed: ${pre.value} · Po: ${post.value} · Δ ${post.value!! - pre.value!!}"
+        pre.answered -> "Przed: ${pre.value} · Po: —"
+        post.answered -> "Przed: — · Po: ${post.value}"
+        else -> "Przed: — · Po: —"
+    }
+}
+
 internal data class SessionHistoryRecord(
     val sessionId: String,
     val startedAtMillis: Long,
@@ -22,6 +43,10 @@ internal data class SessionHistoryRecord(
     val confidence: String? = null,
     val usedFallback: Boolean? = null,
     val fallbackReason: String? = null,
+    val stressPre: Int? = null,
+    val stressPreAnswered: Boolean = false,
+    val stressPost: Int? = null,
+    val stressPostAnswered: Boolean = false,
 )
 
 internal object SessionHistoryJson {
@@ -41,6 +66,10 @@ internal object SessionHistoryJson {
             "confidence" to record.confidence,
             "usedFallback" to record.usedFallback,
             "fallbackReason" to record.fallbackReason,
+            "stressPre" to record.stressPre,
+            "stressPreAnswered" to record.stressPreAnswered,
+            "stressPost" to record.stressPost,
+            "stressPostAnswered" to record.stressPostAnswered,
         ).joinToString(",", "{", "}") { (key, value) ->
             "\"$key\":" + when (value) {
                 null -> "null"
@@ -68,6 +97,10 @@ internal object SessionHistoryJson {
                 cycleMillis = long("cycleMillis"), inhaleMillis = long("inhaleMillis"), exhaleMillis = long("exhaleMillis"),
                 estimateMode = raw("estimateMode"), confidence = raw("confidence"),
                 usedFallback = raw("usedFallback")?.toBooleanStrictOrNull(), fallbackReason = raw("fallbackReason"),
+                stressPre = long("stressPre")?.toInt(),
+                stressPreAnswered = raw("stressPreAnswered")?.toBooleanStrictOrNull() ?: false,
+                stressPost = long("stressPost")?.toInt(),
+                stressPostAnswered = raw("stressPostAnswered")?.toBooleanStrictOrNull() ?: false,
             )
         }.toList()
     }
@@ -109,6 +142,17 @@ internal class SessionHistoryStore(
     fun finalize(sessionId: String, endedAtMillis: Long, activeDurationMillis: Long, outcome: SessionOutcome) {
         val updated = load(false).map { if (it.sessionId == sessionId && it.outcome == null) it.copy(endedAtMillis = endedAtMillis, activeDurationMillis = activeDurationMillis, outcome = outcome) else it }
         save(updated)
+    }
+
+    fun updateStress(sessionId: String, pre: StressCheckIn? = null, post: StressCheckIn? = null) {
+        save(load(false).map { record ->
+            if (record.sessionId != sessionId) record else record.copy(
+                stressPre = pre?.value ?: record.stressPre,
+                stressPreAnswered = pre?.answered ?: record.stressPreAnswered,
+                stressPost = post?.value ?: record.stressPost,
+                stressPostAnswered = post?.answered ?: record.stressPostAnswered,
+            )
+        })
     }
 
     fun delete(sessionId: String) = save(load().filterNot { it.sessionId == sessionId })

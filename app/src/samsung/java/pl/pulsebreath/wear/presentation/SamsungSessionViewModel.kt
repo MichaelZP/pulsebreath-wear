@@ -22,7 +22,14 @@ internal class SamsungSessionViewModel(application: Application) : AndroidViewMo
     private val historyStore = SessionHistoryStore(application.noBackupFilesDir.resolve("guided-session-history.json"))
     var history by mutableStateOf(historyStore.load())
         private set
+    var stressPreDecision by mutableStateOf<StressCheckIn?>(null)
+        private set
+    var stressPostDecision by mutableStateOf<StressCheckIn?>(null)
+        private set
+    var postCheckInEligible by mutableStateOf(false)
+        private set
     private var activeSessionId: String? = null
+    private var finalizedSessionId: String? = null
     val session = GuidedSessionCoordinator(
         sourceFactory = { SamsungSensorDataSource(application.applicationContext) },
         clock = android.os.SystemClock::elapsedRealtime,
@@ -45,6 +52,8 @@ internal class SamsungSessionViewModel(application: Application) : AndroidViewMo
                 confidence = estimate.confidence.name,
                 usedFallback = estimate.usedFallback,
                 fallbackReason = estimate.fallbackReason?.name,
+                stressPre = stressPreDecision?.value,
+                stressPreAnswered = stressPreDecision?.answered == true,
             ))
             history = historyStore.load(recoverInterrupted = false)
         },
@@ -52,12 +61,44 @@ internal class SamsungSessionViewModel(application: Application) : AndroidViewMo
             activeSessionId?.let { id ->
                 historyStore.finalize(id, System.currentTimeMillis(), activeMillis,
                     if (status == BreathingSessionStatus.COMPLETED) SessionOutcome.COMPLETED else SessionOutcome.STOPPED)
+                finalizedSessionId = id
+                postCheckInEligible = true
                 activeSessionId = null
                 history = historyStore.load()
             }
         },
         initialSessionDurationMillis = SessionDurationPreferences.loadLastSelectedDurationMillis(application.applicationContext),
     )
+
+    fun beginCalibration() {
+        stressPreDecision = null
+        stressPostDecision = null
+        postCheckInEligible = false
+        finalizedSessionId = null
+        session.calibrate()
+    }
+
+    fun saveStressPre(value: Int) {
+        stressPreDecision = StressCheckIn.answered(value)
+    }
+
+    fun skipStressPre() {
+        stressPreDecision = StressCheckIn.skipped
+    }
+
+    fun saveStressPost(value: Int) {
+        val id = finalizedSessionId ?: return
+        stressPostDecision = StressCheckIn.answered(value)
+        historyStore.updateStress(id, post = stressPostDecision)
+        history = historyStore.load()
+    }
+
+    fun skipStressPost() {
+        val id = finalizedSessionId ?: return
+        stressPostDecision = StressCheckIn.skipped
+        historyStore.updateStress(id, post = stressPostDecision)
+        history = historyStore.load()
+    }
 
     fun selectSessionDuration(durationMillis: Long) {
         if (session.setSessionDuration(durationMillis)) {

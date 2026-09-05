@@ -32,6 +32,8 @@ import pl.pulsebreath.wear.session.GuidedStage
 import pl.pulsebreath.wear.session.BreathingPhase
 import pl.pulsebreath.wear.history.SessionHistoryRecord
 import pl.pulsebreath.wear.history.SessionOutcome
+import pl.pulsebreath.wear.history.StressCheckIn
+import pl.pulsebreath.wear.history.StressCheckInPairing
 import java.util.Locale
 
 internal fun requiredHeartRatePermission(): String =
@@ -107,7 +109,7 @@ class SamsungSensorActivity : ComponentActivity() {
                             }
                             when (session.stage) {
                                 GuidedStage.IDLE -> if (permissionGranted) {
-                                    Button(onClick = session::calibrate) { Text("Sense my pace") }
+                                    Button(onClick = sessionViewModel::beginCalibration) { Text("Sense my pace") }
                                 }
                                 GuidedStage.CALIBRATING -> {
                                     Text("Sensing attempt ${session.calibrationAttempt}/${GuidedSessionCoordinator.MAX_CALIBRATION_ATTEMPTS}. Breathe naturally.", textAlign = TextAlign.Center)
@@ -124,6 +126,13 @@ class SamsungSensorActivity : ComponentActivity() {
                                         Button(onClick = session::retryCalibration) { Text("Try again") }
                                         Button(onClick = session::stop) { Text("Cancel") }
                                     } else {
+                                        if (sessionViewModel.stressPreDecision == null) {
+                                            StressCheckInContent(
+                                                title = "Stress before breathing",
+                                                onSave = sessionViewModel::saveStressPre,
+                                                onSkip = sessionViewModel::skipStressPre,
+                                            )
+                                        }
                                         Text("Pace ready: ${session.config.cycleDurationMillis / 1000.0} s / breath")
                                         Text("READY prep: ${session.readyVisibleMillis / 1000.0} / 20.0 s", textAlign = TextAlign.Center)
                                         Text("Session length", textAlign = TextAlign.Center)
@@ -135,7 +144,7 @@ class SamsungSensorActivity : ComponentActivity() {
                                             }
                                         }
                                         Text("Selected: ${formatDuration(session.config.sessionDurationMillis)}", textAlign = TextAlign.Center)
-                                        Button(onClick = session::start, enabled = session.canStart) {
+                                        Button(onClick = session::start, enabled = session.canStart && sessionViewModel.stressPreDecision != null) {
                                             Text(if (session.canStart) "Start breathing" else "Start in ${((GuidedSessionDurations.READY_PREPARATION_MILLIS - session.readyVisibleMillis).coerceAtLeast(0L) + 999L) / 1000L}s")
                                         }
                                         Button(onClick = session::stop) { Text("Cancel") }
@@ -163,7 +172,24 @@ class SamsungSensorActivity : ComponentActivity() {
                                     Text("Selected duration: ${formatDuration(session.config.sessionDurationMillis)}", textAlign = TextAlign.Center)
                                     Text("Mean BPM: ${session.meanBpm?.let { String.format(Locale.US, "%.1f", it) } ?: "unavailable"}")
                                     PaceDetails(session)
-                                    if (permissionGranted) Button(onClick = session::calibrate) { Text("New session") }
+                                    val latest = sessionViewModel.history.maxByOrNull { it.startedAtMillis }
+                                    val summary = latest?.let {
+                                        StressCheckInPairing.summary(
+                                            StressCheckIn(it.stressPre, it.stressPreAnswered),
+                                            StressCheckIn(it.stressPost, it.stressPostAnswered),
+                                        )
+                                    }
+                                    if (sessionViewModel.postCheckInEligible && sessionViewModel.stressPostDecision == null) {
+                                        StressCheckInContent(
+                                            title = "Stress after breathing",
+                                            onSave = sessionViewModel::saveStressPost,
+                                            onSkip = sessionViewModel::skipStressPost,
+                                        )
+                                    }
+                                    summary?.let { Text(it, textAlign = TextAlign.Center) }
+                                    if (permissionGranted && (!sessionViewModel.postCheckInEligible || sessionViewModel.stressPostDecision != null)) {
+                                        Button(onClick = sessionViewModel::beginCalibration) { Text("New session") }
+                                    }
                                 }
                             }
                             Text("Alignment: ${session.alignment.availability}", textAlign = TextAlign.Center)
@@ -225,8 +251,36 @@ private fun HistoryDetail(record: SessionHistoryRecord, onBack: () -> Unit, onDe
     Text("Pace: ${record.cycleMillis?.let { "${it / 1000.0} s cycle" } ?: "unavailable"}")
     Text("Mode: ${record.estimateMode ?: "—"}; confidence: ${record.confidence ?: "—"}")
     Text("Fallback: ${record.usedFallback?.toString() ?: "—"}${record.fallbackReason?.let { " ($it)" } ?: ""}", textAlign = TextAlign.Center)
+    StressCheckInPairing.summary(
+        StressCheckIn(record.stressPre, record.stressPreAnswered),
+        StressCheckIn(record.stressPost, record.stressPostAnswered),
+    )?.let { Text(it, textAlign = TextAlign.Center) }
     Button(onClick = onBack) { Text("Back to history") }
     Button(onClick = onDelete) { Text("Delete this session") }
+}
+
+private val stressLabels = listOf("Brak", "Mały", "Średni", "Duży", "Bardzo duży")
+
+@Composable
+private fun StressCheckInContent(
+    title: String,
+    onSave: (Int) -> Unit,
+    onSkip: () -> Unit,
+) {
+    val pickerState = rememberPickerState(initialNumberOfOptions = stressLabels.size)
+    Text(title, textAlign = TextAlign.Center)
+    Text("Wybierz, jeśli chcesz — to nie jest ocena kliniczna.", textAlign = TextAlign.Center)
+    Picker(
+        state = pickerState,
+        contentDescription = { title },
+        modifier = Modifier.fillMaxWidth(),
+    ) { option ->
+        Text(stressLabels[option], textAlign = TextAlign.Center)
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = { onSave(pickerState.selectedOptionIndex) }) { Text("Save") }
+        Button(onClick = onSkip) { Text("Skip") }
+    }
 }
 
 private fun formatDuration(millis: Long): String {

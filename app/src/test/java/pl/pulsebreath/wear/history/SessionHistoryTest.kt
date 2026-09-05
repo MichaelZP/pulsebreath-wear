@@ -50,4 +50,20 @@ class SessionHistoryTest {
             assertTrue(store(file).load().isEmpty())
         } finally { file.delete() }
     }
+
+    @Test fun answeredStressPairsShowDeltaAndSkippedSidesStayNeutral() {
+        assertEquals("Przed: 1 · Po: 3 · Δ 2", StressCheckInPairing.summary(StressCheckIn.answered(1), StressCheckIn.answered(3)))
+        assertEquals("Przed: 1 · Po: —", StressCheckInPairing.summary(StressCheckIn.answered(1), StressCheckIn.skipped))
+        assertEquals("Przed: — · Po: 3", StressCheckInPairing.summary(StressCheckIn.skipped, StressCheckIn.answered(3)))
+        assertEquals("Przed: — · Po: —", StressCheckInPairing.summary(StressCheckIn.skipped, StressCheckIn.skipped))
+    }
+
+    @Test fun stressFieldsRoundTripAndSkipIsExplicit() {
+        val file = File.createTempFile("history", ".json")
+        try {
+            val original = record("stress").copy(stressPre = 2, stressPreAnswered = true, stressPostAnswered = false)
+            store(file).save(listOf(original))
+            assertEquals(original, store(file).load().single())
+        } finally { file.delete() }
+    }
 }
